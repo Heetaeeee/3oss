@@ -4,8 +4,8 @@
 
 | | 맡는 것 |
 |---|---|
-| **화면** | 팀원 등록, 작업 보드, 진행률 · D-day · 기여도 — `public/js/board.js` |
-| **계산 규칙** | 입력값 검사(`validate`), 진행률 · D-day · 기여도(`progress`) |
+| **화면** | 팀원 등록, 작업 보드, 진행률 · D-day · 완료 작업 비중 — `public/js/board.js` |
+| **계산 규칙** | 입력값 검사(`validate`), 진행률 · D-day · 완료 작업 비중(`progress`) |
 | **서버 API** | `GET · POST · PATCH /api/members`, `GET · POST · PATCH /api/tasks` |
 | **공용** | `public/index.html` · `style.css` · `public/js/api.js` |
 
@@ -32,7 +32,7 @@
 | C-2 | `progress.js` + 테스트 | 없음 | 아래 테스트 통과 → B에게 연결 요청 |
 | C-3 | `routes/members.js` · `tasks.js` | B의 스캐폴드 · store | 형식이 [team/README.md](README.md)와 일치 |
 | C-4 | 팀원 등록 · 작업 보드 화면 | C-3 | 새로고침해도 입력한 값이 남음 → A · B에게 알림 |
-| C-5 | 진행률 · D-day · 기여도 표시 | B의 summary API | 작업을 완료로 바꾸면 숫자가 바뀜 |
+| C-5 | 진행률 · D-day · 완료 작업 비중 표시 | B의 summary API | 작업을 완료로 바꾸면 숫자가 바뀜 |
 | C-6 | 다듬기, 접근성 점검 | 전체 | 아래 점검표 |
 
 **커밋은 표의 한 줄이 한 커밋 이상입니다.** 예: `Feat: 화면 뼈대와 공용 API 호출 함수 추가` → `Test: 입력값 검사 케이스 추가` → `Feat: 팀원 · 작업 입력값 검사 추가` → `Feat: 팀원 등록 API 추가` → `Feat: 작업 등록 · 수정 API 추가` → `Feat: 작업 보드 화면` → `Style: 지난 작업을 색과 글자로 함께 표시`.
@@ -49,7 +49,7 @@
   <section id="load">      <!-- B: 부담률 막대 -->
   <section id="tasks">     <!-- C: 작업 등록 폼 + 보드 -->
     <div id="breakdown">   <!-- A: AI 세분화 -->
-  <section id="progress">  <!-- C: 진행률 · 기여도 -->
+  <section id="progress">  <!-- C: 진행률 · 완료 작업 비중 -->
 </main>
 <script type="module" src="js/board.js"></script>
 <script type="module" src="js/load.js"></script>
@@ -183,7 +183,7 @@ test('실제로 없는 날짜는 거절한다', () => {
 
 ---
 
-## C-2. `src/lib/progress.js` — 진행률 · D-day · 기여도
+## C-2. `src/lib/progress.js` — 진행률 · D-day · 완료 작업 비중
 
 **파일:** `src/lib/progress.js`, `test/progress.test.js`
 
@@ -192,19 +192,21 @@ test('실제로 없는 날짜는 거절한다', () => {
 ```js
 export function progressPercent(tasks)                  // 작업이 0개면 0
 export function daysLeft(dueDate, today)                // dueDate 가 null 이면 null. 지났으면 음수
-export function contributionPercent(memberId, tasks)    // 완료된 시간이 없으면 0
+export function doneShare(memberId, tasks)              // → { percent, hours, totalHours }
 ```
 
 | 함수 | 규칙 |
 |---|---|
 | `progressPercent` | `DONE` 수 ÷ 전체 수 × 100 반올림. 전체가 0이면 0 |
 | `daysLeft` | 두 값 모두 `'YYYY-MM-DD'` 문자열로 받아 날짜 단위로 뺀다. 시 · 분 · 시간대가 끼어들지 않게 `Date.UTC` 로 계산 |
-| `contributionPercent` | 내 `DONE` 작업의 `hours` 합 ÷ 전체 `DONE` 작업의 `hours` 합 × 100 반올림. `hours` 가 `null` 인 작업은 세지 않는다 |
+| `doneShare` | `hours` = 내 `DONE` 작업의 `hours` 합, `totalHours` = 전체 `DONE` 작업의 `hours` 합, `percent` = 둘의 비율 × 100 반올림. `totalHours` 가 0이면 `percent` 는 0. `hours` 가 `null` 인 작업은 세지 않는다 |
+
+> **이름이 "완료 작업 비중"가 아닌 이유.** 이 값은 팀이 확정한 **예상 시간**으로 계산합니다. 실제로 걸린 시간이나 결과물의 질은 담지 못하므로 "완료 작업 비중"라고 부르면 숫자가 말하는 것보다 큰 뜻으로 읽힙니다. 화면과 코드 모두 **완료 작업 비중**으로 부릅니다.
 
 ```js
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { progressPercent, daysLeft, contributionPercent } from '../src/lib/progress.js';
+import { progressPercent, daysLeft, doneShare } from '../src/lib/progress.js';
 
 const t = (o) => ({ id: 'x', status: 'TODO', assigneeId: null, hours: null, dueDate: null, ...o });
 
@@ -231,21 +233,21 @@ test('마감일이 없으면 null', () => {
   assert.equal(daysLeft(null, '2026-11-10'), null);
 });
 
-test('기여도는 완료한 시간의 비율', () => {
+test("완료 작업 비중은 완료한 예상 시간의 비율과 시간을 함께 돌려준다", () => {
   const tasks = [
     t({ assigneeId: 'm1', hours: 6, status: 'DONE' }),
     t({ assigneeId: 'm2', hours: 2, status: 'DONE' }),
     t({ assigneeId: 'm2', hours: 9 }),
   ];
-  assert.equal(contributionPercent('m1', tasks), 75);
-  assert.equal(contributionPercent('m2', tasks), 25);
+  assert.deepEqual(doneShare("m1", tasks), { percent: 75, hours: 6, totalHours: 8 });
+  assert.deepEqual(doneShare("m2", tasks), { percent: 25, hours: 2, totalHours: 8 });
 });
-test('완료된 작업이 없으면 기여도는 0', () => {
-  assert.equal(contributionPercent('m1', []), 0);
+test("완료된 작업이 없으면 비중은 0", () => {
+  assert.deepEqual(doneShare("m1", []), { percent: 0, hours: 0, totalHours: 0 });
 });
 test('크기가 정해지지 않은 완료 작업은 세지 않는다', () => {
   const tasks = [t({ assigneeId: 'm1', hours: null, status: 'DONE' })];
-  assert.equal(contributionPercent('m1', tasks), 0);
+  assert.deepEqual(doneShare("m1", tasks), { percent: 0, hours: 0, totalHours: 0 });
 });
 ```
 
@@ -296,16 +298,27 @@ router.post('/', (req, res) => {
 
 ---
 
-## C-5. 진행률 · D-day · 기여도
+## C-5. 진행률 · D-day · 완료 작업 비중
 
 | 항목 | 그리는 법 |
 |---|---|
 | 전체 진행률 | `<progress max="100" value="40">` + "40%" 글자. 값은 `summary.progress` |
 | D-day | `D-3` · `D-day` · `2일 지남`. 지난 작업은 색과 **글자 둘 다**로 구분 |
-| 기여도 | 팀원별 `summary.members[].contribution` 을 막대로. 전부 0이면 "아직 완료된 작업이 없습니다" |
+| 완료 작업 비중 | 팀원마다 한 줄 — **이름 · 막대 · `75%` · `6시간 / 8시간`**. 값은 `doneShare` · `doneHours` · `summary.doneHoursTotal`. `doneHoursTotal` 이 0이면 "아직 완료된 작업이 없습니다" |
 
 - D-day 는 화면에서 오늘 날짜가 필요합니다. `progress.js` 의 `daysLeft` 와 **같은 방식(날짜 단위)** 으로 계산해 자정 근처에 하루씩 어긋나지 않게 합니다.
-- 기여도 옆에 설명을 붙입니다: "완료한 작업의 확정 시간 기준입니다." 숫자만 있으면 오해가 생기는 항목입니다.
+
+**완료 작업 비중은 이렇게 보입니다.**
+
+| 팀원 | 비중 | 완료한 예상 시간 / 전체 |
+|---|---|---|
+| 김권섭 | ▓▓▓▓▓▓░░ 75% | 6시간 / 8시간 |
+| 박지호 | ▓▓░░░░░░ 25% | 2시간 / 8시간 |
+| 우희태 | ░░░░░░░░ 0% | 0시간 / 8시간 |
+
+- 제목은 **"완료 작업 비중"**, 바로 아래 한 줄: "완료한 작업의 확정 예상 시간 기준입니다. 실제 걸린 시간과 다를 수 있습니다."
+- 퍼센트만 두지 않고 **시간을 항상 함께** 보여줍니다. 75%가 6시간 중인지 60시간 중인지에 따라 뜻이 달라집니다.
+- 열 머리글에 단위와 뜻을 적고, 줄마다 같은 문구를 반복하지 않습니다. 휴대폰 폭에서는 막대를 이름 아래 줄로 내립니다.
 
 ---
 
@@ -324,7 +337,7 @@ router.post('/', (req, res) => {
 
 - [ ] `npm test` 에서 C의 테스트 21개가 통과한다
 - [ ] 팀원 3명 · 작업 5개를 넣고 새로고침해도 그대로다
-- [ ] 작업을 완료로 바꾸면 **새로고침 없이** 진행률 · 기여도가 바뀐다
+- [ ] 작업을 완료로 바꾸면 **새로고침 없이** 진행률 · 완료 작업 비중가 바뀐다
 - [ ] 가능한 시간에 음수 · 빈칸을 넣으면 서버의 안내 문장이 폼 아래에 뜬다
 - [ ] 이름에 `<b>굵게</b>` 를 넣으면 글자 그대로 보인다
 - [ ] `GET /api/tasks` 응답에 `estimates` 원본이 없다
@@ -334,6 +347,6 @@ router.post('/', (req, res) => {
 
 ## 발표에서 시연할 것
 
-팀원 3명과 작업을 등록 → 가능한 시간에 음수를 넣어 안내 문장 확인 → 작업 하나를 완료로 바꿔 진행률 · 기여도가 바뀌는 것 → 마감이 지난 작업의 표시.
+팀원 3명과 작업을 등록 → 가능한 시간에 음수를 넣어 안내 문장 확인 → 작업 하나를 완료로 바꿔 진행률 · 완료 작업 비중가 바뀌는 것 → 마감이 지난 작업의 표시.
 
 **받을 질문** — "잘못된 값을 넣으면요?" → 시연과 `validate` 테스트 / "개인정보는요?" → 이름과 가능한 시간만 받고 로그인이 없다 / "작업이 0개면요?" → 진행률 0%.

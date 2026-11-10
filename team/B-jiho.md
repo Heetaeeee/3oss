@@ -189,11 +189,12 @@ POST /api/recommend   { hours }   → 아직 등록하지 않은 작업을 가�
 
 ```
 GET /api/summary
-→ { progress, members: [{ memberId, name, load, overloaded, contribution }] }
+→ { progress, doneHoursTotal, members: [{ memberId, name, load, overloaded, doneShare, doneHours }] }
 ```
 
 - `load` 는 `loadPercent(currentHours(...), availableHours)`, `overloaded` 는 `load > 100`.
-- `progress` 와 `contribution` 은 C의 `progressPercent` · `contributionPercent` 를 부릅니다. 생기기 전에는 `0`.
+- `progress` 는 C의 `progressPercent(tasks)` 를 부릅니다. 생기기 전에는 `0`.
+- `doneShare` · `doneHours` · `doneHoursTotal` 은 C의 `doneShare(memberId, tasks)` 가 돌려주는 `{ percent, hours, totalHours }` 에서 꺼냅니다. 생기기 전에는 전부 `0`.
 
 ---
 
@@ -238,7 +239,7 @@ C가 만든 작업 카드의 `[data-slot="recommend"]` 자리에 **[담당자 �
 - [ ] 추천된 사람이 아닌 다른 사람에게도 배정할 수 있다
 - [ ] 이미 배정된 작업을 다시 추천받아도 그 작업이 두 번 세지지 않는다
 - [ ] 이상한 본문(문자열 시간, 음수, 없는 id)에 500이 아니라 400 · 404가 난다
-- [ ] `explanation` · `progress` · `contribution` 의 임시 값이 실제 함수로 바뀌었다
+- [ ] `explanation` · `progress` · `doneShare` 의 임시 값이 실제 함수로 바뀌었다
 - [ ] 무료 플랜에 배포해 주소로 접속된다
 
 ## 발표에서 시연할 것

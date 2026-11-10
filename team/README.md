@@ -9,8 +9,8 @@
 
 | | **A 김권섭** — 작업 정하기 | **B 박지호** — 나누기 | **C 우희태** — 관리하기 |
 |---|---|---|---|
-| 화면 | AI 세분화 제안, 블라인드 추정 | 부담률 막대, 담당자 추천 · 배정 | 팀원 등록, 작업 보드, 진행률 · 기여도 |
-| 계산 규칙 | AI 응답 검사, 추정 요약, 추천 근거 문장 | 작업 부담률, 담당자 추천 | 입력값 검사, 진행률, D-day, 기여도 |
+| 화면 | AI 세분화 제안, 블라인드 추정 | 부담률 막대, 담당자 추천 · 배정 | 팀원 등록, 작업 보드, 진행률 · 완료 작업 비중 |
+| 계산 규칙 | AI 응답 검사, 추정 요약, 추천 근거 문장 | 작업 부담률, 담당자 추천 | 입력값 검사, 진행률, D-day, 완료 작업 비중 |
 | 서버 API | `POST /api/breakdown`<br/>`POST /api/tasks/:id/estimates` | `POST /api/recommend`<br/>`GET /api/summary` | `/api/members`<br/>`/api/tasks` |
 | 공용 뼈대 | LLM 호출 | Express 스캐폴드, 저장(`store`) | `index.html` · `style.css` · `api.js` |
 | 지침서 | [A-kwonseop.md](A-kwonseop.md) | [B-jiho.md](B-jiho.md) | [C-heetae.md](C-heetae.md) |
@@ -22,7 +22,7 @@
 **팀원 3명의 가능한 시간과 작업을 넣고 새 작업을 추가하면, 추천 담당자와 예상 부담률이 뜨는 것.**
 작업 하나를 완료 처리하면 부담률 막대와 추천 결과가 바뀌는 것까지가 1차 목표입니다.
 
-그 뒤에 블라인드 추정 → 기여도 → AI 세분화 순으로 붙입니다. AI가 없어도 서비스가 성립해야 하기 때문입니다.
+그 뒤에 블라인드 추정 → 완료 작업 비중 → AI 세분화 순으로 붙입니다. AI가 없어도 서비스가 성립해야 하기 때문입니다.
 
 1차 목표에서는 작업 크기(`hours`)를 작업 카드에서 **직접 입력**합니다. 블라인드 추정이 붙으면 "추정해서 정하기"가 그 옆에 추가됩니다.
 
@@ -127,14 +127,15 @@ estimate: { revealed: true, submittedIds: ['m1','m2','m3'],
 // GET /api/summary 응답
 {
   progress: 40,                      // 전체 진행률 %
+  doneHoursTotal: 12,                // 완료된 작업의 확정 예상 시간 합
   members: [
-    { memberId: 'm1', name: '김권섭', load: 60, overloaded: false, contribution: 50 }
+    { memberId: 'm1', name: '김권섭', load: 60, overloaded: false, doneShare: 50, doneHours: 6 }
     // 가능한 시간이 0이면 load: null
   ]
 }
 ```
 
-부담률 · 진행률 · 기여도는 **반올림한 정수**로 내려보냅니다.
+부담률 · 진행률 · 완료 작업 비중는 **반올림한 정수**로 내려보냅니다.
 
 ## 서로의 함수를 부르는 곳
 
@@ -144,7 +145,7 @@ estimate: { revealed: true, submittedIds: ['m1','m2','m3'],
 |---|---|---|
 | C `GET /api/tasks` | A `estimateSummary(estimates, memberIds)` | `{ revealed: false, submittedIds: [] }` |
 | B `POST /api/recommend` | A `explainRecommendation(result)` | `''` |
-| B `GET /api/summary` | C `progressPercent(tasks)` · `contributionPercent(memberId, tasks)` | `0` |
+| B `GET /api/summary` | C `progressPercent(tasks)` · `doneShare(memberId, tasks)` | `0` · `{ percent: 0, hours: 0, totalHours: 0 }` |
 
 ## 화면을 나눠 쓰는 법
 
@@ -177,7 +178,7 @@ document.addEventListener('data', (e) => {
 ## 전원이 지키는 원칙 넷
 
 **1. 숫자는 AI를 거치지 않습니다.**
-부담률 · 추천 · 진행률 · 기여도는 순수 함수만 계산합니다. LLM은 세부 작업 **제목**만 제안합니다.
+부담률 · 추천 · 진행률 · 완료 작업 비중는 순수 함수만 계산합니다. LLM은 세부 작업 **제목**만 제안합니다.
 
 **2. AI가 죽어도 나머지는 동작합니다.**
 `/api/breakdown` 은 실패해도 500을 내지 않고 `{ subtasks: [], source: 'fallback' }` 을 돌려줍니다.
@@ -196,7 +197,7 @@ document.addEventListener('data', (e) => {
 | **1** 순수 함수 + 테스트 | `breakdown` · `estimate` · `explain` | `load` (부담률 · 추천) | `validate` · `progress` |
 | **2** API | — | `recommend` · `summary` | `members` · `tasks` |
 | **3** 화면 → **1차 목표** | (B의 추천 화면에 설명 문장 확인) | 부담률 막대, 추천 · 배정 | 팀원 등록, 작업 보드, 진행률 |
-| **4** 추정 | `estimates` API + 추정 화면 | — | 기여도 표시 |
+| **4** 추정 | `estimates` API + 추정 화면 | — | 완료 작업 비중 표시 |
 | **5** AI | `llm` + `breakdown` API + 세분화 화면 | — | — |
 | **6** 통합 | 전원 — 처음부터 끝까지 눌러보기, 배포, 발표 준비 | | |
 
@@ -224,6 +225,6 @@ A는 단계 2~3에서 손이 빕니다. 그때 단계 4 · 5의 순수 함수와
 
 | 담당 | 시연 |
 |---|---|
-| C 우희태 | 팀원 3명과 작업을 등록 → 잘못된 값을 넣어 안내 문장 확인 → 작업을 완료로 바꿔 진행률 · 기여도 변화 |
+| C 우희태 | 팀원 3명과 작업을 등록 → 잘못된 값을 넣어 안내 문장 확인 → 작업을 완료로 바꿔 진행률 · 완료 작업 비중 변화 |
 | A 김권섭 | "발표 준비"를 AI로 나눠 등록 → 세 명이 추정값 제출 → 동시 공개 · 의견 차이 → 크기 확정. API 키를 비워도 동작하는 것 |
 | B 박지호 | 새 작업에 담당자 추천 → 근거 문장과 예상 부담률 → 배정 → 막대 변화. 가능한 시간 0인 팀원이 제외되는 것 |
