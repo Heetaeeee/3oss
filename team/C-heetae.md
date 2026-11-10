@@ -350,3 +350,59 @@ router.post('/', (req, res) => {
 팀원 3명과 작업을 등록 → 가능한 시간에 음수를 넣어 안내 문장 확인 → 작업 하나를 완료로 바꿔 진행률 · 완료 작업 비중가 바뀌는 것 → 마감이 지난 작업의 표시.
 
 **받을 질문** — "잘못된 값을 넣으면요?" → 시연과 `validate` 테스트 / "개인정보는요?" → 이름과 가능한 시간만 받고 로그인이 없다 / "작업이 0개면요?" → 진행률 0%.
+
+## 추가 구현 — 주차별 수행률 (시간이 남으면)
+
+핵심 기능과 통합이 끝난 뒤에만 시작합니다. 계약은 [team/README.md](README.md)의 "추가 구현" 절에 있습니다.
+
+| 순서 | 할 일 |
+|---|---|
+| C+1 | `PATCH /api/tasks/:id` 에서 `status` 가 `DONE` 이 되면 `completedAt` 기록, 되돌리면 `null` → **A에게 알림** |
+| C+2 | `src/lib/progress.js` 에 `weeklyRates(tasks, today)` + 테스트 |
+| C+3 | `GET /api/weekly` |
+| C+4 | 현황 구역에 주별 막대 |
+
+```js
+// → [{ weekStart, rate, done, total }]  월요일 시작, 오래된 주부터. 마감인 작업이 없는 주는 뺀다
+export function weeklyRates(tasks, today)
+```
+
+**먼저 쓸 테스트**
+
+```js
+// 2026-11-09 는 월요일
+test('주는 월요일에 시작한다', () => {
+  const r = weeklyRates([t({ dueDate: '2026-11-15' }), t({ dueDate: '2026-11-16' })], '2026-11-20');
+  assert.deepEqual(r.map((w) => w.weekStart), ['2026-11-09', '2026-11-16']);
+});
+test('수행률은 그 주에 마감인 작업 중 완료한 비율', () => {
+  const tasks = [
+    t({ dueDate: '2026-11-10', status: 'DONE' }),
+    t({ dueDate: '2026-11-12', status: 'DONE' }),
+    t({ dueDate: '2026-11-13' }),
+  ];
+  assert.deepEqual(weeklyRates(tasks, '2026-11-20'),
+    [{ weekStart: '2026-11-09', rate: 67, done: 2, total: 3 }]);
+});
+test('마감일이 없는 작업은 넣지 않는다', () => {
+  assert.deepEqual(weeklyRates([t({ status: 'DONE' })], '2026-11-20'), []);
+});
+test('작업이 없으면 빈 배열', () => {
+  assert.deepEqual(weeklyRates([], '2026-11-20'), []);
+});
+test('해가 바뀌는 주도 한 주로 묶는다', () => {
+  const r = weeklyRates([t({ dueDate: '2026-12-31' }), t({ dueDate: '2027-01-02' })], '2027-01-05');
+  assert.equal(r.length, 1);
+  assert.equal(r[0].weekStart, '2026-12-28');
+});
+```
+
+**화면** — 완료 작업 비중과 같은 모양으로 맞춥니다. 퍼센트만 두지 않고 건수를 함께 보여줍니다.
+
+| 주 | 수행률 | 완료 / 마감 |
+|---|---|---|
+| 11/9 주 | ▓▓▓▓▓░░░ 67% | 2건 / 3건 |
+| 11/16 주 | ▓▓▓▓▓▓▓▓ 100% | 4건 / 4건 |
+
+막대 위에는 A의 "지난주 요약" 한 줄이 들어갈 자리(`#weekly-summary`)를 비워 둡니다.
+

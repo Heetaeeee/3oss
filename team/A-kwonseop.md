@@ -347,6 +347,64 @@ C가 만든 작업 등록 폼 옆 `#breakdown` 자리를 채웁니다.
 
 **받을 질문** — "AI가 틀리면요?" → 제목 제안뿐이고 사용자가 골라서 등록한다 / "AI가 꺼지면요?" → 시연으로 보여준다 / "작업량은 누가 정하나요?" → 블라인드 추정.
 
+## 추가 구현 — 지난주 AI 요약 (시간이 남으면)
+
+핵심 기능과 통합이 끝난 뒤에만 시작합니다. 계약은 [team/README.md](README.md)의 "추가 구현" 절에 있습니다.
+
+| 순서 | 할 일 | 기다리는 것 |
+|---|---|---|
+| A+1 | `src/lib/summary.js` — `parseSummary` · `fallbackSummary` + 테스트 | 없음 |
+| A+2 | `src/routes/weekly-summary.js` — `POST /api/weekly/summary` | C의 `completedAt` 기록 |
+| A+3 | 요약 한 줄 표시 — `public/js/sizing.js` 또는 새 파일 | C의 주차별 수행률 구역 |
+
+```js
+export function parseSummary(raw)            // → 정리된 문자열, 못 쓰면 null
+export function fallbackSummary(titles)      // → 고정 문구
+```
+
+**먼저 쓸 테스트**
+
+```js
+test('앞뒤 공백과 따옴표를 떼어낸다', () => {
+  assert.equal(parseSummary(' "발표 자료를 마무리했습니다." '), '발표 자료를 마무리했습니다.');
+});
+test('빈 응답과 120자 초과는 null', () => {
+  assert.equal(parseSummary('   '), null);
+  assert.equal(parseSummary('가'.repeat(121)), null);
+});
+test('문자열이 아니면 null', () => {
+  assert.equal(parseSummary(null), null);
+});
+test('4줄 이상이면 앞의 3줄만 남긴다', () => {
+  assert.equal(parseSummary('a\nb\nc\nd'), 'a\nb\nc');
+});
+test('고정 문구는 건수와 제목을 적는다', () => {
+  assert.equal(fallbackSummary(['자료 제작', '대본 작성']), '지난주 완료 2건: 자료 제작, 대본 작성');
+});
+test('3건을 넘으면 외 n건으로 줄인다', () => {
+  assert.equal(fallbackSummary(['a', 'b', 'c', 'd', 'e']), '지난주 완료 5건: a, b, c 외 2건');
+});
+test('완료한 작업이 없으면 없다고 말한다', () => {
+  assert.equal(fallbackSummary([]), '지난주에 완료한 작업이 없습니다.');
+});
+```
+
+**프롬프트 초안**
+
+```
+아래는 대학생 팀이 지난주에 완료한 작업 목록이다.
+무엇을 했는지 한 문장(최대 두 문장)으로 요약하라.
+- 목록에 없는 내용을 지어내지 않는다.
+- 숫자, 날짜, 사람 이름은 쓰지 않는다.
+- 요약 문장만 출력한다.
+
+<완료한 작업 제목을 한 줄에 하나씩>
+```
+
+- 완료 작업이 0건이면 **LLM을 부르지 않고** 바로 고정 문구를 돌려줍니다.
+- `askLlm` 이 `null` 이거나 `parseSummary` 가 `null` 이면 `fallbackSummary`, `source: 'fallback'`. 500을 내지 않습니다.
+- 화면에서는 요약을 `textContent` 로 넣고, 옆에 "AI 요약 · 완료 3건"처럼 **서버가 센 건수**를 함께 둡니다.
+
 ## 이후 확장 (지금은 만들지 않음)
 
 - 작업 난이도 · 선호 역할을 추천에 반영 (이슈 #4의 "향후 확장")
