@@ -65,7 +65,7 @@ flowchart LR
 // 팀원
 {
   id: 'm1',
-  name: '민트',             // 별명. 실명 · 학번 · 연락처를 받지 않는다
+  name: '김권섭',             // 팀원 이름. 학번 · 연락처는 받지 않는다
   availableHours: 10        // 이번 주 가능한 시간(시간). 0 이상의 숫자
 }
 
@@ -116,18 +116,18 @@ estimate: { revealed: true, submittedIds: ['m1','m2','m3'],
 {
   recommendedId: 'm2',               // 후보가 없으면 null
   candidates: [                      // 예상 부담률 오름차순
-    { memberId: 'm2', name: '하늘', currentLoad: 30, projectedLoad: 50 },
-    { memberId: 'm1', name: '민트', currentLoad: 60, projectedLoad: 100 }
+    { memberId: 'm2', name: '박지호', currentLoad: 30, projectedLoad: 50 },
+    { memberId: 'm1', name: '김권섭', currentLoad: 60, projectedLoad: 100 }
   ],
-  excluded: [ { memberId: 'm3', name: '보리', reason: 'NO_AVAILABLE_TIME' } ],
-  explanation: '하늘 님이 맡으면 부담률이 30% → 50%로 가장 낮습니다.'
+  excluded: [ { memberId: 'm3', name: '우희태', reason: 'NO_AVAILABLE_TIME' } ],
+  explanation: '박지호 님이 맡으면 부담률이 30% → 50%로 가장 낮습니다.'
 }
 
 // GET /api/summary 응답
 {
   progress: 40,                      // 전체 진행률 %
   members: [
-    { memberId: 'm1', name: '민트', load: 60, overloaded: false, contribution: 50 }
+    { memberId: 'm1', name: '김권섭', load: 60, overloaded: false, contribution: 50 }
     // 가능한 시간이 0이면 load: null
   ]
 }
@@ -185,7 +185,7 @@ document.addEventListener('data', (e) => {
 서버는 담당자를 자동으로 지정하지 않습니다. 작업 크기도 중앙값을 제안할 뿐 팀이 확정합니다.
 
 **4. 개인정보를 받지 않습니다.**
-로그인 · 회원가입이 없고, 팀원은 별명으로 등록합니다. 저장소와 배포된 앱이 공개되므로 예시 데이터에도 실명을 쓰지 않습니다.
+로그인 · 회원가입이 없고, 팀원은 이름과 가능한 시간만 등록합니다. 저장소와 배포된 앱이 공개되므로 학번 · 연락처 같은 정보는 받지도, 예시 데이터에 쓰지도 않습니다.
 
 ## 착수 순서
 

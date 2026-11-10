@@ -178,10 +178,10 @@ export function explainRecommendation(result)
 
 | 상황 | 문장 |
 |---|---|
-| 추천이 있고 후보가 2명 이상 | `하늘 님이 맡으면 부담률이 30% → 50%로 가장 낮습니다. 다음은 민트 님(60% → 100%)입니다.` |
-| 추천이 있고 후보가 1명 | `하늘 님만 배정할 수 있습니다. 맡으면 부담률이 30% → 50%가 됩니다.` |
+| 추천이 있고 후보가 2명 이상 | `박지호 님이 맡으면 부담률이 30% → 50%로 가장 낮습니다. 다음은 김권섭 님(60% → 100%)입니다.` |
+| 추천이 있고 후보가 1명 | `박지호 님만 배정할 수 있습니다. 맡으면 부담률이 30% → 50%가 됩니다.` |
 | 추천된 사람의 예상 부담률이 100% 초과 | 끝에 ` 누가 맡아도 100%를 넘으니 작업을 나누거나 일정을 조정해 보세요.` |
-| 제외된 팀원이 있음 | 끝에 ` 보리 님은 가능한 시간이 0이라 제외했습니다.` |
+| 제외된 팀원이 있음 | 끝에 ` 우희태 님은 가능한 시간이 0이라 제외했습니다.` |
 | 후보가 없음 | `배정할 수 있는 팀원이 없습니다. 가능한 시간을 먼저 입력해 주세요.` |
 
 ```js
@@ -189,27 +189,27 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { explainRecommendation } from '../src/lib/explain.js';
 
-const sky = { memberId: 'm2', name: '하늘', currentLoad: 30, projectedLoad: 50 };
-const mint = { memberId: 'm1', name: '민트', currentLoad: 60, projectedLoad: 100 };
+const jiho = { memberId: 'm2', name: '박지호', currentLoad: 30, projectedLoad: 50 };
+const seop = { memberId: 'm1', name: '김권섭', currentLoad: 60, projectedLoad: 100 };
 
 test('추천 대상과 다음 후보의 부담률 변화를 적는다', () => {
-  const s = explainRecommendation({ recommendedId: 'm2', candidates: [sky, mint], excluded: [] });
-  assert.match(s, /하늘 님이 맡으면 부담률이 30% → 50%로 가장 낮습니다/);
-  assert.match(s, /민트 님\(60% → 100%\)/);
+  const s = explainRecommendation({ recommendedId: 'm2', candidates: [jiho, seop], excluded: [] });
+  assert.match(s, /박지호 님이 맡으면 부담률이 30% → 50%로 가장 낮습니다/);
+  assert.match(s, /김권섭 님\(60% → 100%\)/);
 });
 test('후보가 한 명이면 비교 문장을 쓰지 않는다', () => {
-  const s = explainRecommendation({ recommendedId: 'm2', candidates: [sky], excluded: [] });
-  assert.match(s, /하늘 님만 배정할 수 있습니다/);
+  const s = explainRecommendation({ recommendedId: 'm2', candidates: [jiho], excluded: [] });
+  assert.match(s, /박지호 님만 배정할 수 있습니다/);
 });
 test('추천 대상도 100%를 넘으면 조정을 권한다', () => {
-  const over = { ...sky, projectedLoad: 120 };
+  const over = { ...jiho, projectedLoad: 120 };
   const s = explainRecommendation({ recommendedId: 'm2', candidates: [over], excluded: [] });
   assert.match(s, /100%를 넘으니/);
 });
 test('제외된 팀원과 이유를 적는다', () => {
-  const s = explainRecommendation({ recommendedId: 'm2', candidates: [sky],
-    excluded: [{ memberId: 'm3', name: '보리', reason: 'NO_AVAILABLE_TIME' }] });
-  assert.match(s, /보리 님은 가능한 시간이 0이라 제외했습니다/);
+  const s = explainRecommendation({ recommendedId: 'm2', candidates: [jiho],
+    excluded: [{ memberId: 'm3', name: '우희태', reason: 'NO_AVAILABLE_TIME' }] });
+  assert.match(s, /우희태 님은 가능한 시간이 0이라 제외했습니다/);
 });
 test('후보가 없으면 가능한 시간 입력을 안내한다', () => {
   const s = explainRecommendation({ recommendedId: null, candidates: [], excluded: [] });
@@ -251,13 +251,13 @@ C가 만든 작업 카드의 `[data-slot="sizing"]` 자리를 채웁니다. 카�
 
 | 상태 | 화면 |
 |---|---|
-| `revealed: false` | "누구로 입력하나요" `<select>` + 예상 시간 입력 + [제출]. 아래에 **제출한 사람 별명만** (`2/3명 제출`) |
+| `revealed: false` | "누구로 입력하나요" `<select>` + 예상 시간 입력 + [제출]. 아래에 **제출한 사람 이름만** (`2/3명 제출`) |
 | `revealed: true`, `hours` 미확정 | 팀원별 추정값을 나란히. `wideSpread` 면 "의견 차이가 큽니다 — 왜 다르게 봤는지 이야기해 보세요". 확정 칸에 `median` 을 기본값으로 채우고 [이 크기로 확정] |
 | `hours` 확정됨 | 확정 시간만 |
 
 - 제출 뒤 입력칸을 비웁니다. 옆 사람이 내 값을 보지 못하게.
 - 마지막으로 고른 팀원을 `localStorage` 에 기억합니다 (읽기 · 쓰기는 `try/catch`).
-- 서버에서 온 별명 · 제목은 **`textContent`** 로 넣습니다. `innerHTML` 을 쓰지 않습니다.
+- 서버에서 온 이름 · 제목은 **`textContent`** 로 넣습니다. `innerHTML` 을 쓰지 않습니다.
 - 데이터를 바꾼 뒤에는 `refresh()`.
 
 ---
@@ -287,7 +287,7 @@ export async function askLlm(prompt)
 작업: <사용자가 입력한 제목>
 ```
 
-**LLM에는 작업 제목만 보냅니다.** 팀원 별명, 가능한 시간, 다른 작업 목록은 보내지 않습니다.
+**LLM에는 작업 제목만 보냅니다.** 팀원 이름, 가능한 시간, 다른 작업 목록은 보내지 않습니다.
 
 ```
 POST /api/breakdown   { title }

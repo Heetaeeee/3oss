@@ -96,7 +96,7 @@ export async function refresh() {
 
 ### 서버에서 온 글자는 반드시 `textContent` 로
 
-별명과 작업 제목은 사용자가 입력한 값이고, AI가 제안한 제목도 섞입니다. **`innerHTML` 에 넣지 않습니다.** 별명에 `<script>` 를 넣어도 글자로만 보여야 합니다.
+이름과 작업 제목은 사용자가 입력한 값이고, AI가 제안한 제목도 섞입니다. **`innerHTML` 에 넣지 않습니다.** 이름에 `<script>` 를 넣어도 글자로만 보여야 합니다.
 
 ---
 
@@ -115,7 +115,7 @@ export function validateTask(body, { partial = false, memberIds = [], taskIds = 
 
 | 필드 | 규칙 | 안내 문장 |
 |---|---|---|
-| `name` | 문자열, 공백 제거 후 1~20자 | `별명은 1~20자로 입력해 주세요.` |
+| `name` | 문자열, 공백 제거 후 1~20자 | `이름은 1~20자로 입력해 주세요.` |
 | `title` | 문자열, 공백 제거 후 1~100자 | `작업 제목은 1~100자로 입력해 주세요.` |
 | `availableHours` | 유한한 숫자, 0 이상 1000 이하 | `가능한 시간은 0 이상의 숫자로 입력해 주세요.` |
 | `hours` | `null` 이거나 유한한 숫자, 0 초과 1000 이하 | `작업 크기는 0보다 큰 숫자로 입력해 주세요.` |
@@ -133,23 +133,23 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { validateMember, validateTask } from '../src/lib/validate.js';
 
-test('별명의 앞뒤 공백을 떼고 통과시킨다', () => {
-  assert.deepEqual(validateMember({ name: ' 민트 ', availableHours: 10 }),
-    { ok: true, value: { name: '민트', availableHours: 10 } });
+test('이름의 앞뒤 공백을 떼고 통과시킨다', () => {
+  assert.deepEqual(validateMember({ name: ' 김권섭 ', availableHours: 10 }),
+    { ok: true, value: { name: '김권섭', availableHours: 10 } });
 });
-test('빈 별명은 거절한다', () => {
+test('빈 이름은 거절한다', () => {
   assert.equal(validateMember({ name: '  ', availableHours: 10 }).ok, false);
 });
 test('가능한 시간 0은 허용한다', () => {
-  assert.equal(validateMember({ name: '민트', availableHours: 0 }).ok, true);
+  assert.equal(validateMember({ name: '김권섭', availableHours: 0 }).ok, true);
 });
 test('음수 · 문자열 · NaN 시간은 거절한다', () => {
   for (const v of [-1, '10', NaN, Infinity, null]) {
-    assert.equal(validateMember({ name: '민트', availableHours: v }).ok, false, String(v));
+    assert.equal(validateMember({ name: '김권섭', availableHours: v }).ok, false, String(v));
   }
 });
 test('거절할 때는 고칠 점을 문장으로 알려준다', () => {
-  assert.match(validateMember({ name: '민트', availableHours: -1 }).error, /가능한 시간/);
+  assert.match(validateMember({ name: '김권섭', availableHours: -1 }).error, /가능한 시간/);
 });
 test('PATCH 는 보낸 필드만 검사한다', () => {
   assert.deepEqual(validateMember({ availableHours: 5 }, { partial: true }),
@@ -280,8 +280,8 @@ router.post('/', (req, res) => {
 
 **팀원 구역 (`#members`)**
 
-- **별명**, **이번 주 가능한 시간(시간)** (`type="number" min="0" step="0.5"`) → `POST /api/members`
-- 입력 칸 아래 안내: **"실명 · 학번 · 연락처 대신 별명을 써 주세요. 이 페이지는 공개됩니다."** (과제 제한 사항 — 실제 개인정보 수집 금지)
+- **이름**, **이번 주 가능한 시간(시간)** (`type="number" min="0" step="0.5"`) → `POST /api/members`
+- 입력 칸 아래 안내: **"이름과 가능한 시간만 받습니다. 학번 · 연락처는 적지 마세요. 이 페이지는 공개됩니다."** (과제 제한 사항 — 실제 개인정보 수집 금지)
 - 목록에서 가능한 시간 수정 → `PATCH /api/members/:id`
 - 가능한 시간의 단위와 기준을 라벨에 적습니다. 사람마다 다르게 이해하면 부담률이 의미를 잃습니다.
 
@@ -326,7 +326,7 @@ router.post('/', (req, res) => {
 - [ ] 팀원 3명 · 작업 5개를 넣고 새로고침해도 그대로다
 - [ ] 작업을 완료로 바꾸면 **새로고침 없이** 진행률 · 기여도가 바뀐다
 - [ ] 가능한 시간에 음수 · 빈칸을 넣으면 서버의 안내 문장이 폼 아래에 뜬다
-- [ ] 별명에 `<b>굵게</b>` 를 넣으면 글자 그대로 보인다
+- [ ] 이름에 `<b>굵게</b>` 를 넣으면 글자 그대로 보인다
 - [ ] `GET /api/tasks` 응답에 `estimates` 원본이 없다
 - [ ] 본문에 `id` · `estimates` 를 넣어 PATCH 해도 바뀌지 않는다
 - [ ] A · B의 자리(`data-slot`)가 다시 그릴 때마다 살아 있다
@@ -336,4 +336,4 @@ router.post('/', (req, res) => {
 
 팀원 3명과 작업을 등록 → 가능한 시간에 음수를 넣어 안내 문장 확인 → 작업 하나를 완료로 바꿔 진행률 · 기여도가 바뀌는 것 → 마감이 지난 작업의 표시.
 
-**받을 질문** — "잘못된 값을 넣으면요?" → 시연과 `validate` 테스트 / "개인정보는요?" → 별명만 받고 로그인이 없다 / "작업이 0개면요?" → 진행률 0%.
+**받을 질문** — "잘못된 값을 넣으면요?" → 시연과 `validate` 테스트 / "개인정보는요?" → 이름과 가능한 시간만 받고 로그인이 없다 / "작업이 0개면요?" → 진행률 0%.

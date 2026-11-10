@@ -109,9 +109,9 @@ import assert from 'node:assert/strict';
 import { currentHours, loadPercent, recommend } from '../src/lib/load.js';
 
 const members = [
-  { id: 'm1', name: '민트', availableHours: 10 },
-  { id: 'm2', name: '하늘', availableHours: 10 },
-  { id: 'm3', name: '보리', availableHours: 0 },
+  { id: 'm1', name: '김권섭', availableHours: 10 },
+  { id: 'm2', name: '박지호', availableHours: 10 },
+  { id: 'm3', name: '우희태', availableHours: 0 },
 ];
 const t = (o) => ({ id: 'x', status: 'TODO', assigneeId: null, hours: null, dueDate: null, ...o });
 
@@ -148,7 +148,7 @@ test('예상 부담률이 가장 낮은 팀원을 추천한다', () => {
 });
 test('가능한 시간이 0인 팀원은 추천에서 제외한다', () => {
   const r = recommend(members, [], 2);
-  assert.deepEqual(r.excluded, [{ memberId: 'm3', name: '보리', reason: 'NO_AVAILABLE_TIME' }]);
+  assert.deepEqual(r.excluded, [{ memberId: 'm3', name: '우희태', reason: 'NO_AVAILABLE_TIME' }]);
   assert.ok(!r.candidates.some((c) => c.memberId === 'm3'));
 });
 test('모두 같으면 먼저 등록된 팀원을 추천한다', () => {
@@ -207,7 +207,7 @@ C가 만든 `index.html` 의 `#load` 자리를 채웁니다. `'data'` 이벤트�
 | 과부하 (`overloaded`) | 색을 바꾸고 **"과부하" 글자를 함께** 표시. 색만으로 구분하지 않습니다 |
 | `load: null` | 막대 없이 "가능한 시간 0 — 배정 불가" |
 
-차트 라이브러리를 쓰지 않습니다. `<div>` 너비로 충분합니다. 별명은 `textContent` 로 넣습니다.
+차트 라이브러리를 쓰지 않습니다. `<div>` 너비로 충분합니다. 이름은 `textContent` 로 넣습니다.
 
 ---
 
@@ -218,7 +218,7 @@ C가 만든 작업 카드의 `[data-slot="recommend"]` 자리에 **[담당자 �
 | 화면 요소 | 내용 |
 |---|---|
 | 맨 위 한 줄 | 응답의 `explanation` 그대로 |
-| 후보 줄 | 별명, `현재 30% → 예상 50%` 와 두 막대, **[배정]** 버튼. 추천된 사람에는 "추천" 글자 표시 |
+| 후보 줄 | 이름, `현재 30% → 예상 50%` 와 두 막대, **[배정]** 버튼. 추천된 사람에는 "추천" 글자 표시 |
 | 제외된 팀원 | "가능한 시간 0 — 제외" |
 
 - `candidates` 를 **받은 순서 그대로** 그립니다. 화면에서 다시 정렬하지 않습니다.
