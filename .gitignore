@@ -147,3 +147,6 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# 저장된 팀원 · 작업 데이터 (공개 저장소에 올리지 않음)
+data/
