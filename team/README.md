@@ -3,7 +3,7 @@
 제품이 무엇이고 왜 이렇게 설계했는지는 루트의 [README.md](../README.md)를, 브랜치 · 커밋 규칙은 [CONTRIBUTING.md](../CONTRIBUTING.md)를 먼저 읽어주세요.
 이 문서는 세 명이 **서로 기다리지 않고** 동시에 작업하기 위한 공용 계약입니다.
 
-## 담당 — 각자 화면 · 계산 규칙 · 서버 API를 하나 이상
+## 담당 — 각자 화면 · 계산 규칙 · 서버`{ memberId, hours, reason? }` | `Task` | API를 하나 이상
 
 과제 조건상 **팀원마다 화면, 계산 규칙, 서버 API를 하나 이상씩 맡고 최종 발표에서 자기 부분을 직접 시연**해야 합니다. 그래서 "프론트 / 백엔드 / AI"로 나누지 않고, **기능 단위로 화면부터 서버까지 세로로** 나눕니다.
 
@@ -78,7 +78,7 @@ flowchart LR
   assigneeId: null,         // 팀원 id 또는 null
   dueDate: '2026-12-01',    // 'YYYY-MM-DD' 또는 null
   hours: null,              // 팀이 확정한 작업 크기(시간). 확정 전에는 null
-  estimates: { m1: 3 },     // 팀원 id → 추정 시간. 서버 안에서만 그대로 보관
+  estimates: { m1: { hours: 3, reason: "슬라이드 10장 기준" } },  // 팀원 id → 추정 시간과 근거. 서버 안에서만 보관
   createdAt: '2026-11-10T09:00:00.000Z'
 }
 ```
@@ -91,7 +91,8 @@ estimate: { revealed: false, submittedIds: ['m1'] }
 
 // 전원이 낸 뒤
 estimate: { revealed: true, submittedIds: ['m1','m2','m3'],
-            values: { m1: 3, m2: 4, m3: 8 }, median: 4, wideSpread: true }
+            values: { m1: 3, m2: 4, m3: 8 }, median: 4, wideSpread: true,
+            reasons: { m1: "슬라이드 10장 기준", m3: "디자인까지 포함" } }
 ```
 
 ## API 형식

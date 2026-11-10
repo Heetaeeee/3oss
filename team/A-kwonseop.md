@@ -111,10 +111,11 @@ test('7개까지만 남긴다', () => {
 **파일:** `src/lib/estimate.js`, `test/estimate.test.js`
 
 ```js
-// 전원이 내기 전에는 values 를 담지 않는다
+// estimates: { 팀원 id: { hours, reason } }
+// 전원이 내기 전에는 values · reasons 를 담지 않는다
 export function estimateSummary(estimates, memberIds)
 // → { revealed: false, submittedIds }
-// → { revealed: true, submittedIds, values, median, wideSpread }
+// → { revealed: true, submittedIds, values, reasons, median, wideSpread }
 ```
 
 | 규칙 | |
@@ -123,41 +124,52 @@ export function estimateSummary(estimates, memberIds)
 | 탈퇴한 팀원의 값 | `memberIds` 에 없는 id 의 추정은 무시 |
 | 중앙값 | 짝수 개면 가운데 두 값의 평균 |
 | 의견 차이 | 최댓값 ≥ 최솟값 × 2 이면 `wideSpread: true` |
+| 근거 | 공개될 때 추정값과 함께 `reasons` 로 나간다. 근거를 적지 않은 사람은 `reasons` 에 넣지 않는다 |
 
 ```js
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { estimateSummary } from '../src/lib/estimate.js';
 
+const e = (hours, reason = "") => ({ hours, reason });
+
 test('전원이 내기 전에는 값을 공개하지 않는다', () => {
-  const s = estimateSummary({ m1: 3 }, ['m1', 'm2']);
+  const s = estimateSummary({ m1: e(3) }, ['m1', 'm2']);
   assert.equal(s.revealed, false);
   assert.deepEqual(s.submittedIds, ['m1']);
   assert.equal('values' in s, false);
   assert.equal('median' in s, false);
 });
 test('전원이 내면 값과 중앙값을 공개한다', () => {
-  const s = estimateSummary({ m1: 3, m2: 4, m3: 8 }, ['m1', 'm2', 'm3']);
+  const s = estimateSummary({ m1: e(3), m2: e(4), m3: e(8) }, ['m1', 'm2', 'm3']);
   assert.equal(s.revealed, true);
   assert.deepEqual(s.values, { m1: 3, m2: 4, m3: 8 });
   assert.equal(s.median, 4);
 });
 test('짝수 개면 가운데 두 값의 평균', () => {
-  assert.equal(estimateSummary({ m1: 3, m2: 4 }, ['m1', 'm2']).median, 3.5);
+  assert.equal(estimateSummary({ m1: e(3), m2: e(4) }, ['m1', 'm2']).median, 3.5);
 });
 test('최댓값이 최솟값의 2배 이상이면 의견 차이가 크다', () => {
-  assert.equal(estimateSummary({ m1: 3, m2: 6 }, ['m1', 'm2']).wideSpread, true);
+  assert.equal(estimateSummary({ m1: e(3), m2: e(6) }, ['m1', 'm2']).wideSpread, true);
 });
 test('차이가 2배 미만이면 wideSpread 는 false', () => {
-  assert.equal(estimateSummary({ m1: 3, m2: 4 }, ['m1', 'm2']).wideSpread, false);
+  assert.equal(estimateSummary({ m1: e(3), m2: e(4) }, ['m1', 'm2']).wideSpread, false);
 });
 test('팀원이 없으면 공개하지 않는다', () => {
   assert.equal(estimateSummary({}, []).revealed, false);
 });
 test('팀에 없는 사람의 추정은 무시한다', () => {
-  const s = estimateSummary({ m1: 3, gone: 99 }, ['m1']);
+  const s = estimateSummary({ m1: e(3), gone: e(99) }, ['m1']);
   assert.deepEqual(s.values, { m1: 3 });
   assert.equal(s.median, 3);
+});
+test("공개되면 근거도 함께 나간다", () => {
+  const s = estimateSummary({ m1: e(3, "슬라이드 10장 기준"), m2: e(8) }, ["m1", "m2"]);
+  assert.deepEqual(s.reasons, { m1: "슬라이드 10장 기준" });
+});
+test("전원이 내기 전에는 근거도 공개하지 않는다", () => {
+  const s = estimateSummary({ m1: e(3, "슬라이드 10장 기준") }, ["m1", "m2"]);
+  assert.equal("reasons" in s, false);
 });
 ```
 
@@ -224,7 +236,7 @@ test('후보가 없으면 가능한 시간 입력을 안내한다', () => {
 ## A-4. `src/routes/estimates.js` — `POST /api/tasks/:id/estimates`
 
 ```
-POST /api/tasks/:id/estimates   { memberId, hours }
+POST /api/tasks/:id/estimates   { memberId, hours, reason? }
 → 200 Task (estimate 요약 포함, estimates 원본은 빼고)
 → 404 { error: '작업을 찾을 수 없습니다.' }
 → 400 { error: '…' }
@@ -234,9 +246,11 @@ POST /api/tasks/:id/estimates   { memberId, hours }
 |---|---|
 | `memberId` 가 실제 팀원 | 400 `누구로 입력하는지 골라 주세요.` |
 | `hours` 가 유한한 숫자, 0 초과 1000 이하 | 400 `예상 시간은 0보다 큰 숫자로 입력해 주세요.` |
+| `reason` 은 없어도 된다. 있으면 문자열, 공백 제거 후 100자 이하 | 400 `근거는 100자 이내로 적어 주세요.` |
 | 작업의 `hours` 가 이미 확정됨 | 400 `이미 크기가 확정된 작업입니다.` |
 
-- 공개 전에는 자기 값을 다시 내면 덮어씁니다.
+- 공개 전에는 자기 값과 근거를 다시 내면 덮어씁니다.
+- 근거는 선택 입력입니다. 강제하면 "그냥"만 채워집니다. 대신 공개 화면에서 근거가 있는 추정이 눈에 띄게 합니다.
 - 저장은 B의 `store.load()` / `store.save()` 를 씁니다.
 - **응답에 `estimates` 원본을 그대로 담지 않습니다.** `estimateSummary` 를 거친 `estimate` 만 내보냅니다.
 - 크기 확정은 새 API를 만들지 않고 C의 `PATCH /api/tasks/:id { hours }` 를 씁니다.
@@ -251,11 +265,12 @@ C가 만든 작업 카드의 `[data-slot="sizing"]` 자리를 채웁니다. 카�
 
 | 상태 | 화면 |
 |---|---|
-| `revealed: false` | "누구로 입력하나요" `<select>` + 예상 시간 입력 + [제출]. 아래에 **제출한 사람 이름만** (`2/3명 제출`) |
-| `revealed: true`, `hours` 미확정 | 팀원별 추정값을 나란히. `wideSpread` 면 "의견 차이가 큽니다 — 왜 다르게 봤는지 이야기해 보세요". 확정 칸에 `median` 을 기본값으로 채우고 [이 크기로 확정] |
+| `revealed: false` | "누구로 입력하나요" `<select>` + 예상 시간 입력 + **근거 입력(선택, 한 줄)** + [제출]. 아래에 **제출한 사람 이름만** (`2/3명 제출`) |
+| `revealed: true`, `hours` 미확정 | 팀원별 추정값과 **근거**를 나란히 (`김권섭 3시간 — 슬라이드 10장 기준`). 근거가 없으면 시간만. `wideSpread` 면 "의견 차이가 큽니다 — 왜 다르게 봤는지 이야기해 보세요". 확정 칸에 `median` 을 기본값으로 채우고 [이 크기로 확정] |
 | `hours` 확정됨 | 확정 시간만 |
 
-- 제출 뒤 입력칸을 비웁니다. 옆 사람이 내 값을 보지 못하게.
+- 근거 입력칸의 안내 문구: "왜 이 시간인가요? 예: 슬라이드 10장 기준". 숫자만 공개되면 차이가 나도 이유를 알 수 없어서 넣는 칸입니다.
+- 제출 뒤 시간과 근거 입력칸을 모두 비웁니다. 옆 사람이 내 값을 보지 못하게.
 - 마지막으로 고른 팀원을 `localStorage` 에 기억합니다 (읽기 · 쓰기는 `try/catch`).
 - 서버에서 온 이름 · 제목은 **`textContent`** 로 넣습니다. `innerHTML` 을 쓰지 않습니다.
 - 데이터를 바꾼 뒤에는 `refresh()`.
@@ -318,17 +333,17 @@ C가 만든 작업 등록 폼 옆 `#breakdown` 자리를 채웁니다.
 
 ## A-8. 마무리 점검표
 
-- [ ] `npm test` 에서 A의 테스트 21개가 통과한다
+- [ ] `npm test` 에서 A의 테스트 23개가 통과한다
 - [ ] `.env` 의 `GEMINI_API_KEY` 를 비우고 서버를 켜도 작업 등록 · 추정 · 추천이 된다
 - [ ] 키를 일부러 틀리게 넣어도 `/api/breakdown` 이 200 + `fallback` 을 돌려준다
 - [ ] 와이파이를 끄고 눌러도 화면이 멈추지 않는다 (8초 안에 직접 입력으로 넘어감)
-- [ ] 한 명만 추정을 낸 상태에서 `GET /api/tasks` 응답 전체(개발자 도구 네트워크 탭)에 그 값이 없다
+- [ ] 한 명만 추정을 낸 상태에서 `GET /api/tasks` 응답 전체(개발자 도구 네트워크 탭)에 그 값과 근거가 없다
 - [ ] 같은 제목을 다섯 번 넣어 응답에 숫자 · 담당자가 섞이지 않는지 본다. 섞이면 프롬프트를 고친다
 - [ ] 이상한 입력("ㅁㄴㅇㄹ", 아주 긴 문장, 프롬프트를 무시하라는 문장)에도 제목 배열 아니면 빈 배열만 나온다
 
 ## 발표에서 시연할 것
 
-"발표 준비"를 AI로 나눠 등록 → 세 명이 추정값 제출(두 번째까지는 값이 안 보임) → 세 번째 제출에 동시 공개 · 의견 차이 표시 → 크기 확정. 마지막으로 API 키를 비운 서버에서 세분화 버튼을 눌러 직접 입력으로 넘어가는 것.
+"발표 준비"를 AI로 나눠 등록 → 세 명이 추정값 제출(두 번째까지는 값이 안 보임) → 세 번째 제출에 추정값과 근거가 동시 공개 · 의견 차이 표시 → 크기 확정. 마지막으로 API 키를 비운 서버에서 세분화 버튼을 눌러 직접 입력으로 넘어가는 것.
 
 **받을 질문** — "AI가 틀리면요?" → 제목 제안뿐이고 사용자가 골라서 등록한다 / "AI가 꺼지면요?" → 시연으로 보여준다 / "작업량은 누가 정하나요?" → 블라인드 추정.
 
