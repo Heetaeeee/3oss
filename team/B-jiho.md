@@ -1,15 +1,15 @@
-# B — 나누기: 저장 · 부담률 · 담당자 추천 (박지호)
+# B — 분배 기능: 부담률 · 담당자 추천 (박지호)
 
 [team/README.md](README.md)의 공용 데이터 형태와 API 형식을 먼저 읽어주세요. 이 문서는 그 위에서 B가 맡을 것만 다룹니다.
 
 | | 맡는 것 |
 |---|---|
 | **화면** | 부담률 막대, 담당자 추천 · 배정 패널 — `public/js/load.js` |
-| **계산 규칙** | 작업 부담률, 담당자 추천 — `src/lib/load.js` |
-| **서버 API** | `POST /api/recommend` · `GET /api/summary` |
+| **계산 규칙** | 작업 부담률, 담당자 추천 — `src/lib/load.js` · 추천 근거 문장 — `src/lib/explain.js` |
+| **서버 API** | `POST /api/recommend` · `GET /api/loads` |
 | **공용** | Express 스캐폴드, 저장 `src/lib/store.js` |
 
-**안 맡는 것:** AI 세분화 · 추정 · 추천 근거 문장(김권섭), 팀원 · 작업 등록과 진행률(우희태)
+**안 맡는 것:** AI 세분화 · 블라인드 추정(김권섭), 팀원 · 작업 등록과 진행률(우희태)
 
 ---
 
@@ -29,10 +29,11 @@
 |---|---|---|---|
 | B-0 | 스캐폴드 + `store.js` | 없음 | `npm start` 로 `public/index.html` 이 뜨고, `store.load()` 가 빈 상태를 돌려줌 |
 | B-1 | `load.js` + 테스트 | 없음 | 아래 테스트 통과 |
-| B-2 | `routes/recommend.js` · `summary.js` | C의 members · tasks API (데이터 넣어보기용) | 형식이 [team/README.md](README.md)와 일치 |
-| B-3 | 부담률 막대 화면 | C의 `index.html` 뼈대 | 작업을 완료로 바꾸면 막대가 줄어듦 |
-| B-4 | 추천 · 배정 화면 | C의 작업 카드 | **1차 목표 장면 완성** |
-| B-5 | A · C 함수 연결, 배포 | A의 `explain`, C의 `progress` | 임시 값이 실제 함수로 교체됨 |
+| B-2 | `explain.js` + 테스트 | 없음 | 아래 테스트 통과 |
+| B-3 | `routes/recommend.js` · `loads.js` | C의 members · tasks API (데이터 넣어보기용) | 형식이 [team/README.md](README.md)와 일치 |
+| B-4 | 부담률 막대 화면 | C의 `index.html` 뼈대 | 작업을 완료로 바꾸면 막대가 줄어듦 |
+| B-5 | 추천 · 배정 화면 | C의 작업 카드 | **중간발표 목표 장면 완성** |
+| B-6 | 배포 | 전체 | 무료 플랜 주소로 접속됨 |
 
 **커밋은 표의 한 줄이 한 커밋 이상입니다.** 예: `Chore: Express 스캐폴드와 실행 스크립트 추가` → `Feat: JSON 파일 저장소 추가` → `Test: 부담률 · 추천 케이스 추가` → `Feat: 작업 부담률 계산 추가` → `Feat: 예상 부담률이 가장 낮은 팀원 추천` → `Feat: 담당자 추천 API 추가` → `Feat: 부담률 막대 화면`.
 
@@ -44,7 +45,7 @@
 package.json      "type": "module", scripts: start · test, dependencies: express 만
 server.js         app.listen(process.env.PORT ?? 3000)
 src/app.js        express.json() · express.static('public') · 라우트 연결. app 을 export
-src/routes/       빈 라우터 6개 — members · tasks(C), recommend · summary(B), estimates · breakdown(A)
+src/routes/       빈 라우터 7개 — members · tasks · progress(C), recommend · loads(B), estimates · breakdown(A)
 src/lib/store.js
 .env.example      PORT= · GEMINI_API_KEY= · GEMINI_MODEL=
 .gitignore        node_modules · .env · data/ 가 들어 있는지 확인
@@ -59,7 +60,7 @@ src/lib/store.js
 
 - 의존성은 `express` 하나입니다. `dotenv` · `nodemon` · `cors` 는 넣지 않습니다 (Node 내장 `--env-file`, `--watch` 로 충분하고, 화면을 같은 서버가 제공하므로 CORS가 필요 없습니다). 과제 조건이 메모리 512MB · 무료 플랜입니다.
 - `express.json({ limit: '10kb' })` 로 본문 크기를 막습니다.
-- **빈 라우터 6개를 미리 연결해 둡니다.** A와 C는 자기 라우터 파일만 채우면 되고 `app.js` 를 건드릴 일이 없어집니다.
+- **빈 라우터 7개를 미리 연결해 둡니다.** A와 C는 자기 라우터 파일만 채우면 되고 `app.js` 를 건드릴 일이 없어집니다.
 
 ### `src/lib/store.js`
 
@@ -169,7 +170,62 @@ test('배정할 수 있는 팀원이 없으면 추천은 null', () => {
 
 ---
 
-## B-2. `routes/recommend.js` · `routes/summary.js`
+## B-2. `src/lib/explain.js` — 추천 근거 문장
+
+**파일:** `src/lib/explain.js`, `test/explain.test.js`
+
+추천 결과를 사람이 읽는 한 문장으로 바꿉니다. LLM이 쓰지 않고, `recommend` 가 계산한 값을 받아 **고정 문구**로 만듭니다. 틀린 숫자가 설명에 섞일 수 없습니다.
+
+```js
+// recommend 결과(recommendedId, candidates, excluded)를 받아 한국어 문장을 돌려준다.
+export function explainRecommendation(result)
+```
+
+| 상황 | 문장 |
+|---|---|
+| 추천이 있고 후보가 2명 이상 | `박지호 님이 맡으면 부담률이 30% → 50%로 가장 낮습니다. 다음은 김권섭 님(60% → 100%)입니다.` |
+| 추천이 있고 후보가 1명 | `박지호 님만 배정할 수 있습니다. 맡으면 부담률이 30% → 50%가 됩니다.` |
+| 추천된 사람의 예상 부담률이 100% 초과 | 끝에 ` 누가 맡아도 100%를 넘으니 작업을 나누거나 일정을 조정해 보세요.` |
+| 제외된 팀원이 있음 | 끝에 ` 우희태 님은 가능한 시간이 0이라 제외했습니다.` |
+| 후보가 없음 | `배정할 수 있는 팀원이 없습니다. 가능한 시간을 먼저 입력해 주세요.` |
+
+```js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { explainRecommendation } from '../src/lib/explain.js';
+
+const jiho = { memberId: 'm2', name: '박지호', currentLoad: 30, projectedLoad: 50 };
+const seop = { memberId: 'm1', name: '김권섭', currentLoad: 60, projectedLoad: 100 };
+
+test('추천 대상과 다음 후보의 부담률 변화를 적는다', () => {
+  const s = explainRecommendation({ recommendedId: 'm2', candidates: [jiho, seop], excluded: [] });
+  assert.match(s, /박지호 님이 맡으면 부담률이 30% → 50%로 가장 낮습니다/);
+  assert.match(s, /김권섭 님\(60% → 100%\)/);
+});
+test('후보가 한 명이면 비교 문장을 쓰지 않는다', () => {
+  const s = explainRecommendation({ recommendedId: 'm2', candidates: [jiho], excluded: [] });
+  assert.match(s, /박지호 님만 배정할 수 있습니다/);
+});
+test('추천 대상도 100%를 넘으면 조정을 권한다', () => {
+  const over = { ...jiho, projectedLoad: 120 };
+  const s = explainRecommendation({ recommendedId: 'm2', candidates: [over], excluded: [] });
+  assert.match(s, /100%를 넘으니/);
+});
+test('제외된 팀원과 이유를 적는다', () => {
+  const s = explainRecommendation({ recommendedId: 'm2', candidates: [jiho],
+    excluded: [{ memberId: 'm3', name: '우희태', reason: 'NO_AVAILABLE_TIME' }] });
+  assert.match(s, /우희태 님은 가능한 시간이 0이라 제외했습니다/);
+});
+test('후보가 없으면 가능한 시간 입력을 안내한다', () => {
+  const s = explainRecommendation({ recommendedId: null, candidates: [], excluded: [] });
+  assert.match(s, /배정할 수 있는 팀원이 없습니다/);
+});
+```
+
+
+---
+
+## B-3. `routes/recommend.js` · `routes/loads.js`
 
 ```
 POST /api/recommend   { taskId }  → 그 작업의 확정 hours 로 계산
@@ -184,23 +240,21 @@ POST /api/recommend   { hours }   → 아직 등록하지 않은 작업을 가�
 | 둘 다 없음 | 400 |
 
 - `taskId` 로 계산할 때는 **그 작업 자신을 현재 작업량에서 빼고** 계산합니다. 이미 누군가에게 배정된 작업을 다시 추천받을 때 두 번 세지 않게.
-- 응답은 `recommend(...)` 결과에 `explanation` 을 붙입니다. A의 `explainRecommendation` 이 생기기 전에는 `''` 로 두고 먼저 머지합니다.
+- 응답은 `recommend(...)` 결과에 `explanation: explainRecommendation(result)` 을 붙입니다.
 - **이 라우트는 담당자를 바꾸지 않습니다.** 계산만 해서 돌려줍니다. 배정은 화면에서 C의 `PATCH /api/tasks/:id { assigneeId }` 를 부릅니다.
 
 ```
-GET /api/summary
-→ { progress, doneHoursTotal, members: [{ memberId, name, load, overloaded, doneShare, doneHours }] }
+GET /api/loads
+→ { members: [{ memberId, name, load, overloaded }] }
 ```
 
 - `load` 는 `loadPercent(currentHours(...), availableHours)`, `overloaded` 는 `load > 100`.
-- `progress` 는 C의 `progressPercent(tasks)` 를 부릅니다. 생기기 전에는 `0`.
-- `doneShare` · `doneHours` · `doneHoursTotal` 은 C의 `doneShare(memberId, tasks)` 가 돌려주는 `{ percent, hours, totalHours }` 에서 꺼냅니다. 생기기 전에는 전부 `0`.
 
 ---
 
-## B-3. 부담률 막대 — `public/js/load.js`
+## B-4. 부담률 막대 — `public/js/load.js`
 
-C가 만든 `index.html` 의 `#load` 자리를 채웁니다. `'data'` 이벤트의 `summary.members` 를 그대로 그립니다. **화면에서 부담률을 다시 계산하지 않습니다.**
+C가 만든 `index.html` 의 `#load` 자리를 채웁니다. `"data"` 이벤트가 오면 `GET /api/loads` 를 받아 그대로 그립니다. **화면에서 부담률을 다시 계산하지 않습니다.**
 
 | 항목 | 그리는 법 |
 |---|---|
@@ -212,7 +266,7 @@ C가 만든 `index.html` 의 `#load` 자리를 채웁니다. `'data'` 이벤트�
 
 ---
 
-## B-4. 추천 · 배정 패널 — 1차 목표 장면
+## B-5. 추천 · 배정 패널 — 중간발표 목표 장면
 
 C가 만든 작업 카드의 `[data-slot="recommend"]` 자리에 **[담당자 추천]** 버튼을 넣습니다 → `POST /api/recommend { taskId }`
 
@@ -230,17 +284,28 @@ C가 만든 작업 카드의 `[data-slot="recommend"]` 자리에 **[담당자 �
 
 ---
 
-## B-5. 마무리 점검표
+## 마무리 점검표
 
-- [ ] `npm test` 에서 B의 테스트 10개가 통과한다
+- [ ] `npm test` 에서 B의 테스트 15개가 통과한다
 - [ ] 서버를 껐다 켜도 팀원 · 작업이 남아 있다
 - [ ] 가능한 시간 0인 팀원이 추천 후보에 나오지 않는다
 - [ ] 작업을 `DONE` 으로 바꾸면 **새로고침 없이** 그 팀원의 막대가 줄어든다
 - [ ] 추천된 사람이 아닌 다른 사람에게도 배정할 수 있다
 - [ ] 이미 배정된 작업을 다시 추천받아도 그 작업이 두 번 세지지 않는다
 - [ ] 이상한 본문(문자열 시간, 음수, 없는 id)에 500이 아니라 400 · 404가 난다
-- [ ] `explanation` · `progress` · `doneShare` 의 임시 값이 실제 함수로 바뀌었다
 - [ ] 무료 플랜에 배포해 주소로 접속된다
+
+## 발표 기준 일정
+
+전체 일정과 완성 기준은 [team/README.md](README.md#일정--발표를-기준으로-세-구간)에 있습니다. 아래는 B의 몫입니다.
+
+| 구간 | 해야 할 일 | 위 순서 |
+|---|---|---|
+| **중간발표 전** | **스캐폴드 · `store.js` (반나절 안에)** → 부담률 · 추천 · 근거 문장 규칙과 테스트 → `/api/loads` · `/api/recommend` → 부담률 막대 → 추천 · 배정 패널 | B-0 ~ B-5 의 기본 흐름 |
+| **중간발표 이후** | 과부하(100% 초과) 표시, 가능한 시간 0 · 동률 · 후보 없음 화면, 이미 배정된 작업 재추천 시 중복 계산 방지, 잘못된 본문에 400 · 404, 저장 안전(임시 파일 후 rename · 깨진 파일 감지), **무료 플랜 배포** | B-3 ~ B-6 의 나머지 |
+| **최종발표 전 완성** | 테스트 15개 통과, 마무리 점검표 전부 체크, 배포 주소 접속 확인, 시연용 데이터 넣는 순서 정리, 시연 리허설 | 마무리 점검표 |
+
+**중간발표에서 보여줄 것:** 크기가 정해진 작업에 [담당자 추천] → 근거 문장과 예상 부담률 → 배정 → 막대가 바뀌는 것.
 
 ## 발표에서 시연할 것
 

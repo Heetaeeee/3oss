@@ -1,4 +1,4 @@
-# C — 관리하기: 팀원 · 작업 · 진행률 (우희태)
+# C — 등록 · 진행 관리 기능: 팀원 · 작업 · 진행률 (우희태)
 
 [team/README.md](README.md)의 공용 데이터 형태와 API 형식을 먼저 읽어주세요. 이 문서는 그 위에서 C가 맡을 것만 다룹니다.
 
@@ -6,10 +6,10 @@
 |---|---|
 | **화면** | 팀원 등록, 작업 보드, 진행률 · D-day · 완료 작업 비중 — `public/js/board.js` |
 | **계산 규칙** | 입력값 검사(`validate`), 진행률 · D-day · 완료 작업 비중(`progress`) |
-| **서버 API** | `GET · POST · PATCH /api/members`, `GET · POST · PATCH /api/tasks` |
+| **서버 API** | `GET · POST · PATCH /api/members`, `GET · POST · PATCH /api/tasks`, `GET /api/progress` |
 | **공용** | `public/index.html` · `style.css` · `public/js/api.js` |
 
-**안 맡는 것:** 저장소 · 부담률 · 추천(박지호), AI 세분화 · 추정 · 추천 근거 문장(김권섭)
+**안 맡는 것:** 부담률 · 담당자 추천(박지호), AI 세분화 · 블라인드 추정(김권섭)
 
 ---
 
@@ -29,10 +29,10 @@
 |---|---|---|---|
 | C-0 | `index.html` 뼈대 + `style.css` + `api.js` | 없음 | 빈 구역과 자리(`data-slot`)가 있고 `refresh()` 가 `'data'` 이벤트를 냄 |
 | C-1 | `validate.js` + 테스트 | 없음 | 아래 테스트 통과 |
-| C-2 | `progress.js` + 테스트 | 없음 | 아래 테스트 통과 → B에게 연결 요청 |
-| C-3 | `routes/members.js` · `tasks.js` | B의 스캐폴드 · store | 형식이 [team/README.md](README.md)와 일치 |
+| C-2 | `progress.js` + 테스트 | 없음 | 아래 테스트 통과 |
+| C-3 | `routes/members.js` · `tasks.js` · `progress.js` | B의 스캐폴드 · store | 형식이 [team/README.md](README.md)와 일치 |
 | C-4 | 팀원 등록 · 작업 보드 화면 | C-3 | 새로고침해도 입력한 값이 남음 → A · B에게 알림 |
-| C-5 | 진행률 · D-day · 완료 작업 비중 표시 | B의 summary API | 작업을 완료로 바꾸면 숫자가 바뀜 |
+| C-5 | 진행률 · D-day · 완료 작업 비중 표시 | C-3 | 작업을 완료로 바꾸면 숫자가 바뀜 |
 | C-6 | 다듬기, 접근성 점검 | 전체 | 아래 점검표 |
 
 **커밋은 표의 한 줄이 한 커밋 이상입니다.** 예: `Feat: 화면 뼈대와 공용 API 호출 함수 추가` → `Test: 입력값 검사 케이스 추가` → `Feat: 팀원 · 작업 입력값 검사 추가` → `Feat: 팀원 등록 API 추가` → `Feat: 작업 등록 · 수정 API 추가` → `Feat: 작업 보드 화면` → `Style: 지난 작업을 색과 글자로 함께 표시`.
@@ -83,10 +83,8 @@ export async function api(path, options) {
 }
 
 export async function refresh() {
-  const [members, tasks, summary] = await Promise.all([
-    api('/api/members'), api('/api/tasks'), api('/api/summary'),
-  ]);
-  document.dispatchEvent(new CustomEvent('data', { detail: { members, tasks, summary } }));
+  const [members, tasks] = await Promise.all([api("/api/members"), api("/api/tasks")]);
+  document.dispatchEvent(new CustomEvent('data', { detail: { members, tasks } }));
 }
 ```
 
@@ -251,11 +249,11 @@ test('크기가 정해지지 않은 완료 작업은 세지 않는다', () => {
 });
 ```
 
-완성되면 **B에게 알려** `routes/summary.js` 의 임시 값 `0` 을 이 함수로 바꾸게 합니다.
+이 함수들은 C의 `GET /api/progress` 가 부릅니다.
 
 ---
 
-## C-3. `routes/members.js` · `routes/tasks.js`
+## C-3. `routes/members.js` · `routes/tasks.js` · `routes/progress.js`
 
 형식은 [team/README.md](README.md)의 표 그대로입니다. 라우트는 얇게 — **검사는 `validate.js`, 저장은 B의 `store.js`.**
 
@@ -273,7 +271,8 @@ router.post('/', (req, res) => {
 
 - 없는 id 로 PATCH → 404 `{ error: '팀원을 찾을 수 없습니다.' }`
 - 새 작업의 기본값: `status: 'TODO'`, `assigneeId: null`, `hours: null`, `estimates: {}`, `createdAt`
-- **`GET /api/tasks` 와 작업을 돌려주는 모든 응답에서 `estimates` 를 빼고 `estimate` 요약을 넣습니다.** A의 `estimateSummary(task.estimates, memberIds)` 를 부릅니다. A의 함수가 생기기 전에는 `{ revealed: false, submittedIds: [] }` 로 둡니다. 원본 `estimates` 가 응답에 새면 블라인드 추정이 성립하지 않습니다.
+- **`GET /api/tasks` 와 작업을 돌려주는 모든 응답에서 `estimates` 필드를 뺍니다.** 추정 요약은 A의 `GET /api/estimates` 가 따로 내보냅니다. 원본 `estimates` 가 응답에 새면 블라인드 추정이 성립하지 않습니다.
+- `GET /api/progress` → `{ progress, doneHoursTotal, members: [{ memberId, name, doneShare, doneHours }] }`. `progressPercent` 와 `doneShare` 를 불러 채웁니다.
 - 삭제 API는 1차 범위에 넣지 않습니다. 필요해지면 그때 추가합니다.
 
 ---
@@ -293,7 +292,7 @@ router.post('/', (req, res) => {
 - 작업 카드: 제목 · 상태 · 담당자 · 크기 · D-day, 그리고 A · B의 빈 자리
 - 상태는 `<select>` 할 일 / 진행 중 / 완료 → `PATCH /api/tasks/:id`
 - 담당자도 `<select>` (팀원 목록 + "미정")
-- 크기(`hours`)는 숫자 입력 → `PATCH /api/tasks/:id { hours }`. A의 추정 화면이 붙기 전에도 1차 목표 장면이 돌아가게 하는 입력입니다
+- 크기(`hours`)는 숫자 입력 → `PATCH /api/tasks/:id { hours }`. A의 추정 화면이 붙기 전에도 중간발표 목표 장면이 돌아가게 하는 입력입니다
 - 세분화로 만든 작업(`parentId` 있음)은 상위 작업 아래에 들여 씁니다
 
 ---
@@ -302,9 +301,9 @@ router.post('/', (req, res) => {
 
 | 항목 | 그리는 법 |
 |---|---|
-| 전체 진행률 | `<progress max="100" value="40">` + "40%" 글자. 값은 `summary.progress` |
+| 전체 진행률 | `<progress max="100" value="40">` + "40%" 글자. 값은 `GET /api/progress` 의 `progress` |
 | D-day | `D-3` · `D-day` · `2일 지남`. 지난 작업은 색과 **글자 둘 다**로 구분 |
-| 완료 작업 비중 | 팀원마다 한 줄 — **이름 · 막대 · `75%` · `6시간 / 8시간`**. 값은 `doneShare` · `doneHours` · `summary.doneHoursTotal`. `doneHoursTotal` 이 0이면 "아직 완료된 작업이 없습니다" |
+| 완료 작업 비중 | 팀원마다 한 줄 — **이름 · 막대 · `75%` · `6시간 / 8시간`**. 값은 `GET /api/progress` 의 `doneShare` · `doneHours` · `doneHoursTotal`. `doneHoursTotal` 이 0이면 "아직 완료된 작업이 없습니다" |
 
 - D-day 는 화면에서 오늘 날짜가 필요합니다. `progress.js` 의 `daysLeft` 와 **같은 방식(날짜 단위)** 으로 계산해 자정 근처에 하루씩 어긋나지 않게 합니다.
 
@@ -344,6 +343,19 @@ router.post('/', (req, res) => {
 - [ ] 본문에 `id` · `estimates` 를 넣어 PATCH 해도 바뀌지 않는다
 - [ ] A · B의 자리(`data-slot`)가 다시 그릴 때마다 살아 있다
 - [ ] 휴대폰 폭에서 깨지지 않는다
+
+## 발표 기준 일정
+
+전체 일정과 완성 기준은 [team/README.md](README.md#일정--발표를-기준으로-세-구간)에 있습니다. 아래는 C의 몫입니다.
+
+| 구간 | 해야 할 일 | 위 순서 |
+|---|---|---|
+| **중간발표 전** | **`index.html` 뼈대 · `api.js` (반나절 안에)** → 입력값 검사 · 진행률 · D-day 규칙과 테스트 → `/api/members` · `/api/tasks` · `/api/progress`(진행률만) → 팀원 등록 · 작업 보드 → 진행률 표시 | C-0 ~ C-5 의 기본 흐름 |
+| **중간발표 이후** | 완료 작업 비중(규칙 · `/api/progress` 확장 · `75% · 6시간 / 8시간` 화면), D-day · 지난 작업 표시, 잘못된 입력마다 안내 문장, 허용하지 않은 필드 무시, 휴대폰 폭 · 키보드 조작 · 접근성 | C-2 ~ C-6 의 나머지 |
+| **최종발표 전 완성** | 테스트 21개 통과, 마무리 점검표 전부 체크, README의 기능 · API · 실행 방법을 실제 코드와 맞추기, 시연 리허설 | 마무리 점검표 |
+| 시간이 남으면 | 주차별 수행률 | 추가 구현 |
+
+**중간발표에서 보여줄 것:** 팀원 3명과 작업을 등록하고, 작업을 완료로 바꾸면 진행률이 바뀌는 것. 잘못된 값을 넣었을 때의 안내 문장.
 
 ## 발표에서 시연할 것
 

@@ -1,15 +1,15 @@
-# A — 작업 정하기: AI 세분화 · 추정 · 추천 설명 (김권섭)
+# A — 작업 정의 기능: AI 세분화 · 블라인드 추정 (김권섭)
 
 [team/README.md](README.md)의 공용 데이터 형태와 원칙을 먼저 읽어주세요. 이 문서는 그 위에서 A가 맡을 것만 다룹니다.
 
 | | 맡는 것 |
 |---|---|
 | **화면** | AI 세분화 제안 패널, 블라인드 추정 패널 — `public/js/sizing.js` |
-| **계산 규칙** | AI 응답 검사(`breakdown`), 추정 요약(`estimate`), 추천 근거 문장(`explain`) |
-| **서버 API** | `POST /api/breakdown` · `POST /api/tasks/:id/estimates` |
+| **계산 규칙** | AI 응답 검사(`breakdown`), 추정 요약(`estimate`) |
+| **서버 API** | `POST /api/breakdown` · `POST /api/tasks/:id/estimates` · `GET /api/estimates` |
 | **공용** | LLM 호출 `src/lib/llm.js` |
 
-**안 맡는 것:** 저장 · 부담률 · 추천 계산(박지호), 팀원 · 작업 등록과 진행률(우희태)
+**안 맡는 것:** 부담률 · 담당자 추천과 근거 문장(박지호), 팀원 · 작업 등록과 진행률(우희태)
 
 ---
 
@@ -29,14 +29,13 @@
 |---|---|---|---|
 | A-1 | `breakdown.js` + 테스트 | 없음 | 아래 테스트 통과 |
 | A-2 | `estimate.js` + 테스트 | 없음 | 아래 테스트 통과 |
-| A-3 | `explain.js` + 테스트 | 없음 | 아래 테스트 통과 → B에게 연결 요청 |
-| A-4 | `routes/estimates.js` | B의 스캐폴드 · store | 전원 제출 전 응답에 값이 없음 |
-| A-5 | 추정 화면 | C의 작업 카드 | 제출 → 공개 → 확정까지 눌러짐 |
-| A-6 | `llm.js` + `routes/breakdown.js` | B의 스캐폴드 | 키를 비워도 200 + `fallback` |
-| A-7 | 세분화 화면 | C의 작업 등록 폼 | AI가 꺼져도 직접 입력으로 등록 |
-| A-8 | 실패 경로 점검, 프롬프트 다듬기 | 전체 | 아래 점검표 |
+| A-3 | `routes/estimates.js` | B의 스캐폴드 · store | 전원 제출 전 응답에 값이 없음 |
+| A-4 | 추정 화면 | C의 작업 카드 | 제출 → 공개 → 확정까지 눌러짐 |
+| A-5 | `llm.js` + `routes/breakdown.js` | B의 스캐폴드 | 키를 비워도 200 + `fallback` |
+| A-6 | 세분화 화면 | C의 작업 등록 폼 | AI가 꺼져도 직접 입력으로 등록 |
+| A-7 | 실패 경로 점검, 프롬프트 다듬기 | 전체 | 아래 점검표 |
 
-A-1 ~ A-3은 아무것도 기다리지 않습니다. `package.json` 이 없어도 `node --test test/` 로 돌아갑니다.
+A-1 · A-2는 아무것도 기다리지 않습니다. `package.json` 이 없어도 `node --test test/` 로 돌아갑니다.
 
 **커밋은 표의 한 줄이 한 커밋 이상입니다.** 규칙 · 테스트 · API · 화면을 한 커밋에 섞지 않습니다. 예: `Test: AI 응답 검사 케이스 추가` → `Feat: AI 응답에서 제목 배열만 추출` → `Feat: 세부 작업 제안 API 추가` → `Feat: 세분화 제안 체크박스 화면`.
 
@@ -173,71 +172,16 @@ test("전원이 내기 전에는 근거도 공개하지 않는다", () => {
 });
 ```
 
-완성되면 **C에게 알려** `GET /api/tasks` 의 임시 값을 이 함수로 바꾸게 합니다.
-
 ---
 
-## A-3. `src/lib/explain.js` — 추천 근거 문장
-
-**파일:** `src/lib/explain.js`, `test/explain.test.js`
-
-"역할 분배 설명"은 LLM이 쓰지 않습니다. B가 계산한 값을 받아 **고정 문구**로 만듭니다. 틀린 숫자가 설명에 섞일 수 없습니다.
-
-```js
-// B의 recommend 결과(recommendedId, candidates, excluded)를 받아 한국어 문장을 돌려준다.
-export function explainRecommendation(result)
-```
-
-| 상황 | 문장 |
-|---|---|
-| 추천이 있고 후보가 2명 이상 | `박지호 님이 맡으면 부담률이 30% → 50%로 가장 낮습니다. 다음은 김권섭 님(60% → 100%)입니다.` |
-| 추천이 있고 후보가 1명 | `박지호 님만 배정할 수 있습니다. 맡으면 부담률이 30% → 50%가 됩니다.` |
-| 추천된 사람의 예상 부담률이 100% 초과 | 끝에 ` 누가 맡아도 100%를 넘으니 작업을 나누거나 일정을 조정해 보세요.` |
-| 제외된 팀원이 있음 | 끝에 ` 우희태 님은 가능한 시간이 0이라 제외했습니다.` |
-| 후보가 없음 | `배정할 수 있는 팀원이 없습니다. 가능한 시간을 먼저 입력해 주세요.` |
-
-```js
-import { test } from 'node:test';
-import assert from 'node:assert/strict';
-import { explainRecommendation } from '../src/lib/explain.js';
-
-const jiho = { memberId: 'm2', name: '박지호', currentLoad: 30, projectedLoad: 50 };
-const seop = { memberId: 'm1', name: '김권섭', currentLoad: 60, projectedLoad: 100 };
-
-test('추천 대상과 다음 후보의 부담률 변화를 적는다', () => {
-  const s = explainRecommendation({ recommendedId: 'm2', candidates: [jiho, seop], excluded: [] });
-  assert.match(s, /박지호 님이 맡으면 부담률이 30% → 50%로 가장 낮습니다/);
-  assert.match(s, /김권섭 님\(60% → 100%\)/);
-});
-test('후보가 한 명이면 비교 문장을 쓰지 않는다', () => {
-  const s = explainRecommendation({ recommendedId: 'm2', candidates: [jiho], excluded: [] });
-  assert.match(s, /박지호 님만 배정할 수 있습니다/);
-});
-test('추천 대상도 100%를 넘으면 조정을 권한다', () => {
-  const over = { ...jiho, projectedLoad: 120 };
-  const s = explainRecommendation({ recommendedId: 'm2', candidates: [over], excluded: [] });
-  assert.match(s, /100%를 넘으니/);
-});
-test('제외된 팀원과 이유를 적는다', () => {
-  const s = explainRecommendation({ recommendedId: 'm2', candidates: [jiho],
-    excluded: [{ memberId: 'm3', name: '우희태', reason: 'NO_AVAILABLE_TIME' }] });
-  assert.match(s, /우희태 님은 가능한 시간이 0이라 제외했습니다/);
-});
-test('후보가 없으면 가능한 시간 입력을 안내한다', () => {
-  const s = explainRecommendation({ recommendedId: null, candidates: [], excluded: [] });
-  assert.match(s, /배정할 수 있는 팀원이 없습니다/);
-});
-```
-
-완성되면 **B에게 알려** `routes/recommend.js` 의 `explanation: ''` 을 이 함수로 바꾸게 합니다. B의 파일이므로 직접 고치지 않습니다.
-
----
-
-## A-4. `src/routes/estimates.js` — `POST /api/tasks/:id/estimates`
+## A-3. `src/routes/estimates.js` — 추정 제출 · 조회
 
 ```
 POST /api/tasks/:id/estimates   { memberId, hours, reason? }
-→ 200 Task (estimate 요약 포함, estimates 원본은 빼고)
+→ 200 { taskId, estimate }          estimate 는 estimateSummary 결과
+
+GET  /api/estimates
+→ 200 { t1: { revealed: false, submittedIds: ["m1"] }, t2: { revealed: true, … } }   작업 id → 요약
 → 404 { error: '작업을 찾을 수 없습니다.' }
 → 400 { error: '…' }
 ```
@@ -252,16 +196,16 @@ POST /api/tasks/:id/estimates   { memberId, hours, reason? }
 - 공개 전에는 자기 값과 근거를 다시 내면 덮어씁니다.
 - 근거는 선택 입력입니다. 강제하면 "그냥"만 채워집니다. 대신 공개 화면에서 근거가 있는 추정이 눈에 띄게 합니다.
 - 저장은 B의 `store.load()` / `store.save()` 를 씁니다.
-- **응답에 `estimates` 원본을 그대로 담지 않습니다.** `estimateSummary` 를 거친 `estimate` 만 내보냅니다.
+- **추정값은 이 두 API로만 밖에 나갑니다.** 항상 `estimateSummary` 를 거친 요약만 내보내고 원본 `estimates` 는 담지 않습니다. C의 `GET /api/tasks` 는 `estimates` 필드를 아예 빼고 내보냅니다.
 - 크기 확정은 새 API를 만들지 않고 C의 `PATCH /api/tasks/:id { hours }` 를 씁니다.
 
 > 로그인이 없으므로 "누가 냈는지"는 화면에서 고른 `memberId` 를 믿습니다. 과제 제한 사항(로그인 금지) 안에서 받아들이는 한계입니다.
 
 ---
 
-## A-5. 추정 화면 — `public/js/sizing.js`
+## A-4. 추정 화면 — `public/js/sizing.js`
 
-C가 만든 작업 카드의 `[data-slot="sizing"]` 자리를 채웁니다. 카드의 `estimate` 값에 따라 세 가지 모습입니다.
+C가 만든 작업 카드의 `[data-slot="sizing"]` 자리를 채웁니다. `"data"` 이벤트가 오면 `GET /api/estimates` 를 받아, 작업마다 요약에 따라 세 가지 모습으로 그립니다.
 
 | 상태 | 화면 |
 |---|---|
@@ -277,7 +221,7 @@ C가 만든 작업 카드의 `[data-slot="sizing"]` 자리를 채웁니다. 카�
 
 ---
 
-## A-6. `src/lib/llm.js` · `src/routes/breakdown.js`
+## A-5. `src/lib/llm.js` · `src/routes/breakdown.js`
 
 ```js
 // 프롬프트를 보내고 응답 문자열을 돌려준다. 어떤 이유로든 실패하면 null. 절대 throw 하지 않는다.
@@ -318,7 +262,7 @@ POST /api/breakdown   { title }
 
 ---
 
-## A-7. 세분화 화면 — `public/js/sizing.js`
+## A-6. 세분화 화면 — `public/js/sizing.js`
 
 C가 만든 작업 등록 폼 옆 `#breakdown` 자리를 채웁니다.
 
@@ -331,15 +275,28 @@ C가 만든 작업 등록 폼 옆 `#breakdown` 자리를 채웁니다.
 
 ---
 
-## A-8. 마무리 점검표
+## A-7. 마무리 점검표
 
-- [ ] `npm test` 에서 A의 테스트 23개가 통과한다
+- [ ] `npm test` 에서 A의 테스트 18개가 통과한다
 - [ ] `.env` 의 `GEMINI_API_KEY` 를 비우고 서버를 켜도 작업 등록 · 추정 · 추천이 된다
 - [ ] 키를 일부러 틀리게 넣어도 `/api/breakdown` 이 200 + `fallback` 을 돌려준다
 - [ ] 와이파이를 끄고 눌러도 화면이 멈추지 않는다 (8초 안에 직접 입력으로 넘어감)
-- [ ] 한 명만 추정을 낸 상태에서 `GET /api/tasks` 응답 전체(개발자 도구 네트워크 탭)에 그 값과 근거가 없다
+- [ ] 한 명만 추정을 낸 상태에서 `GET /api/estimates` 와 `GET /api/tasks` 응답(개발자 도구 네트워크 탭)에 그 값과 근거가 없다
 - [ ] 같은 제목을 다섯 번 넣어 응답에 숫자 · 담당자가 섞이지 않는지 본다. 섞이면 프롬프트를 고친다
 - [ ] 이상한 입력("ㅁㄴㅇㄹ", 아주 긴 문장, 프롬프트를 무시하라는 문장)에도 제목 배열 아니면 빈 배열만 나온다
+
+## 발표 기준 일정
+
+전체 일정과 완성 기준은 [team/README.md](README.md#일정--발표를-기준으로-세-구간)에 있습니다. 아래는 A의 몫입니다.
+
+| 구간 | 해야 할 일 | 위 순서 |
+|---|---|---|
+| **중간발표 전** | 추정 요약 · AI 응답 검사 규칙과 테스트 → 추정 제출 · 조회 API → 추정 화면(제출 → 공개 → 확정) → LLM 호출과 `/api/breakdown`(실패 시 fallback) → 세분화 제안 목록에서 골라 등록 | A-1 ~ A-6 의 기본 흐름 |
+| **중간발표 이후** | 추정 근거 입력 · 공개, 의견 차이 표시, 확정된 작업 재제출 차단, LLM 실패 경로 점검(시간 초과 · 이상한 응답 · 이상한 입력), 프롬프트 다듬기, "작업 제목만 전송" 고지 | A-3 ~ A-7 의 나머지 |
+| **최종발표 전 완성** | 테스트 18개 통과, 마무리 점검표 전부 체크, API 키를 비운 서버에서의 시연 준비, 시연 리허설 | 마무리 점검표 |
+| 시간이 남으면 | 지난주 AI 요약 | 추가 구현 |
+
+**중간발표에서 보여줄 것:** 작업 하나에 세 명이 추정을 내고, 세 번째 제출에 동시 공개되어 크기를 확정하는 것. 그리고 "발표 준비"를 AI로 나눠 등록하는 것.
 
 ## 발표에서 시연할 것
 
