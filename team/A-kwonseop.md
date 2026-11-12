@@ -7,7 +7,7 @@
 | **화면** | AI 세분화 제안 패널, 블라인드 추정 패널 — `public/js/sizing.js` |
 | **계산 규칙** | AI 응답 검사(`breakdown`), 추정 요약(`estimate`) |
 | **서버 API** | `POST /api/breakdown` · `POST /api/tasks/:id/estimates` · `GET /api/estimates` |
-| **공용** | LLM 호출 `src/lib/llm.js` |
+| **공용** | LLM 호출 `src/lib/llm.js`, 공용 스타일 `public/style.css` · [디자인 가이드](DESIGN.md) |
 
 **안 맡는 것:** 부담률 · 담당자 추천과 근거 문장(박지호), 팀원 · 작업 등록과 진행률(우희태)
 
@@ -27,6 +27,7 @@
 
 | 순서 | 할 일 | 기다리는 것 | 완료 기준 |
 |---|---|---|---|
+| A-0 | `style.css` — 목업의 "공용 스타일" 블록을 옮김 | 없음 | C의 `index.html` 이 불러오면 목업과 같은 모양 |
 | A-1 | `breakdown.js` + 테스트 | 없음 | 아래 테스트 통과 |
 | A-2 | `estimate.js` + 테스트 | 없음 | 아래 테스트 통과 |
 | A-3 | `routes/estimates.js` | B의 스캐폴드 · store | 전원 제출 전 응답에 값이 없음 |

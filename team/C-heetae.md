@@ -7,7 +7,7 @@
 | **화면** | 팀원 등록, 작업 보드, 진행률 · D-day · 완료 작업 비중 — `public/js/board.js` |
 | **계산 규칙** | 입력값 검사(`validate`), 진행률 · D-day · 완료 작업 비중(`progress`) |
 | **서버 API** | `GET · POST · PATCH /api/members`, `GET · POST · PATCH /api/tasks`, `GET /api/progress` |
-| **공용** | `public/index.html` · `style.css` · `public/js/api.js` |
+| **공용** | `public/index.html` · `public/js/api.js` (`style.css` 는 김권섭) |
 
 **안 맡는 것:** 부담률 · 담당자 추천(박지호), AI 세분화 · 블라인드 추정(김권섭)
 
@@ -27,7 +27,7 @@
 
 | 순서 | 할 일 | 기다리는 것 | 완료 기준 |
 |---|---|---|---|
-| C-0 | `index.html` 뼈대 + `style.css` + `api.js` | 없음 | 빈 구역과 자리(`data-slot`)가 있고 `refresh()` 가 `'data'` 이벤트를 냄 |
+| C-0 | `index.html` 뼈대 + `api.js` | 없음 | 빈 구역과 자리(`data-slot`)가 있고 `refresh()` 가 `'data'` 이벤트를 냄 |
 | C-1 | `validate.js` + 테스트 | 없음 | 아래 테스트 통과 |
 | C-2 | `progress.js` + 테스트 | 없음 | 아래 테스트 통과 |
 | C-3 | `routes/members.js` · `tasks.js` · `progress.js` | B의 스캐폴드 · store | 형식이 [team/README.md](README.md)와 일치 |
