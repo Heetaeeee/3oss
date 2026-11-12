@@ -82,7 +82,8 @@ flowchart LR
 | 뼈대 | 담당 | 내용 |
 |---|---|---|
 | 서버 뼈대 | B | `package.json` · `server.js` · `src/app.js` (빈 라우터 7개 연결) · `src/lib/store.js` (JSON 파일 저장) |
-| 화면 뼈대 | C | `public/index.html` (구역과 자리) · `style.css` · `public/js/api.js` |
+| 화면 뼈대 | C | `public/index.html` (구역과 자리) · `public/js/api.js` |
+| 공용 스타일 | A | `public/style.css` (토큰 · 공용 부품), [디자인 가이드](DESIGN.md) · [목업](design-mockup.html) |
 
 이슈 #4의 "역할 분배 설명"은 추천 결과를 설명하는 문장이라 **분배 기능(B)** 에 넣었습니다. 추천과 그 근거가 한 사람의 기능 안에 있어야 "각자 자기 기능의 화면 · 규칙 · API"가 성립합니다.
 
@@ -178,6 +179,7 @@ flowchart LR
 ## 화면을 나눠 쓰는 법
 
 페이지는 `public/index.html` 하나입니다. C가 뼈대를 깔고, 각자 **자기 JS 파일이 자기 자리만** 채웁니다.
+색 · 글자 · 부품 · 상태별 모양은 [화면 디자인 가이드](DESIGN.md)와 [목업](design-mockup.html)을 따릅니다.
 
 | 자리 | 채우는 기능 · 파일 |
 |---|---|
@@ -242,7 +244,7 @@ flowchart LR
 
 | 순서 | 할 일 | 끝나야 풀리는 것 |
 |---|---|---|
-| ① | B 스캐폴드 · store, C 화면 뼈대 · `api.js` — **반나절 안에** | 나머지 전부 |
+| ① | B 스캐폴드 · store, C 화면 뼈대 · `api.js`, A 공용 스타일 — **반나절 안에** | 나머지 전부 |
 | ① | 세 명 모두 자기 계산 규칙과 테스트 (아무것도 기다리지 않음) | 각자의 API |
 | ② | C `/api/members` · `/api/tasks` + 등록 화면 | A · B가 실제 데이터로 화면을 붙임 |
 | ③ | A 추정 API · 화면, B 부담률 · 추천 API · 화면 | 목표 장면 |
@@ -341,7 +343,8 @@ completedAt: '2026-11-17T10:00:00.000Z'
 | A 작업 정의 | `src/lib/breakdown.js` · `estimate.js` · `llm.js`<br/>`src/routes/breakdown.js` · `estimates.js`<br/>`public/js/sizing.js`<br/>`test/breakdown.test.js` · `estimate.test.js` |
 | B 분배 | `src/lib/load.js` · `explain.js`<br/>`src/routes/loads.js` · `recommend.js`<br/>`public/js/load.js`<br/>`test/load.test.js` · `explain.test.js` |
 | 서버 뼈대 (B) | `package.json` · `server.js` · `src/app.js` · `src/lib/store.js` · `.env.example` |
-| 화면 뼈대 (C) | `public/index.html` · `style.css` · `public/js/api.js` |
+| 화면 뼈대 (C) | `public/index.html` · `public/js/api.js` |
+| 공용 스타일 (A) | `public/style.css` · `team/DESIGN.md` · `team/design-mockup.html` |
 
 남의 파일을 고쳐야 하면 고치기 전에 담당자에게 말하고, **커밋을 따로 냅니다.**
 

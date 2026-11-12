@@ -286,7 +286,7 @@ team/                  역할 분담 · 개인별 지침서
 | **작업 정의**<br/>큰 작업을 AI로 나누고 크기를 팀이 함께 정한다 | 김권섭<br/>[@kwonseop](https://github.com/kwonseop) | AI 세분화 제안, 블라인드 추정 | AI 응답 검사, 추정 요약(중앙값 · 의견 차이 · 근거) | `/api/breakdown`<br/>`/api/estimates` | [A](team/A-kwonseop.md) |
 | **분배**<br/>부담률을 계산하고 담당자를 근거와 함께 추천한다 | 박지호<br/>[@parkjiho-1104](https://github.com/parkjiho-1104) | 부담률 막대, 담당자 추천 · 배정 | 부담률, 담당자 추천, 추천 근거 문장 | `/api/loads`<br/>`/api/recommend` | [B](team/B-jiho.md) |
 
-공용 뼈대는 박지호가 서버(Express · 저장), 우희태가 화면(`index.html` · 공용 fetch 함수)을 먼저 깝니다.
+공용 뼈대는 박지호가 서버(Express · 저장), 우희태가 화면(`index.html` · 공용 fetch 함수), 김권섭이 공용 스타일(`style.css` · [디자인 가이드](team/DESIGN.md))을 먼저 깝니다.
 
 ## 오픈소스 · 출처
 
