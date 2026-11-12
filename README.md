@@ -82,7 +82,7 @@ xychart-beta
 | 입력값 검사 | 이름 · 제목 길이, 시간 범위, 날짜 형식, 존재하는 id 인지 | 어긋나면 저장하지 않고 고칠 점을 안내 | 우희태 |
 | 작업 크기 추정 | 전원 제출 시에만 공개. 중앙값을 기본값으로 제안 | 최댓값이 최솟값의 2배 이상이면 "의견 차이 큼". 확정 전 작업은 부담률에 넣지 않음 | 김권섭 |
 | AI 응답 검사 | LLM 응답에서 제목 배열만 추출 | 형식이 어긋나면 빈 목록, 중복 · 빈 값 · 40자 초과 제거, 최대 7개 | 김권섭 |
-| 추천 근거 문장 | 계산 결과로 고정 문구를 조립 | 후보 1명 · 후보 없음 · 전원 과부하 · 제외된 팀원 | 김권섭 |
+| 추천 근거 문장 | 계산 결과로 고정 문구를 조립 | 후보 1명 · 후보 없음 · 전원 과부하 · 제외된 팀원 | 박지호 |
 
 ## ChatGPT에 직접 묻는 것과 무엇이 다른가
 
@@ -122,9 +122,9 @@ flowchart LR
     end
 
     subgraph Server["Express 서버"]
-        R1["/api/members · /api/tasks"]
-        R4["/api/tasks/:id/estimates"]
-        R2["/api/recommend · /api/summary"]
+        R1["/api/members · /api/tasks<br/>/api/progress"]
+        R4["/api/estimates"]
+        R2["/api/loads · /api/recommend"]
         R3["/api/breakdown"]
         RULE["순수 함수<br/>validate · progress · load · estimate"]
         VAL["breakdown.js<br/>응답 검사"]
@@ -152,11 +152,13 @@ LLM은 `/api/breakdown` 한 경로에만 연결되어 있고, 계산과 저장�
 |---|---|---|
 | `GET /api/members` | 팀원 목록 | 우희태 |
 | `POST /api/members` · `PATCH /api/members/:id` | 팀원 등록 · 수정 | 우희태 |
-| `GET /api/tasks` | 작업 목록 (추정값은 공개 전까지 숨김) | 우희태 |
+| `GET /api/tasks` | 작업 목록 | 우희태 |
 | `POST /api/tasks` · `PATCH /api/tasks/:id` | 작업 등록, 상태 · 담당자 · 확정 시간 · 마감일 수정 | 우희태 |
+| `GET /api/progress` | 전체 진행률, 팀원별 완료 작업 비중 | 우희태 |
 | `POST /api/recommend` | 예상 부담률 비교와 추천 담당자, 근거 문장 | 박지호 |
-| `GET /api/summary` | 팀원별 부담률 · 완료 작업 비중, 전체 진행률 | 박지호 |
+| `GET /api/loads` | 팀원별 부담률 | 박지호 |
 | `POST /api/tasks/:id/estimates` | 내 추정 시간과 근거 제출 | 김권섭 |
+| `GET /api/estimates` | 작업별 추정 요약 (전원 제출 전에는 값을 숨김) | 김권섭 |
 | `POST /api/breakdown` | 세부 작업 제목 제안 (LLM) | 김권섭 |
 
 요청 · 응답 형식은 [팀 브리프](team/README.md)에 있습니다.
@@ -169,7 +171,7 @@ LLM은 `/api/breakdown` 한 경로에만 연결되어 있고, 계산과 저장�
 |---|---|
 | **화면** — 값을 입력 · 선택하고 결과를 확인 | 가능한 시간 · 작업 · 추정 시간을 입력하고, 담당자를 선택하면 부담률 막대 · 추천 · 진행률이 바뀝니다 |
 | **계산 규칙** — 테스트 5개 이상 | 위 [계산 규칙](#계산-규칙) 9개. 전부 순수 함수라 화면 없이 `npm test` 로 확인합니다 |
-| **서버** — 저장 또는 외부 API, 엔드포인트 2개 이상 | JSON 파일 저장 + LLM API 호출. 엔드포인트 8개 |
+| **서버** — 저장 또는 외부 API, 엔드포인트 2개 이상 | JSON 파일 저장 + LLM API 호출. 엔드포인트 12개 |
 | **LLM 호출** — 서버가 앱 데이터를 보내고 응답을 기능에 사용 | 작업 제목을 보내 세부 작업 제목을 받고, 검사한 뒤 화면에 제안으로 표시 · 선택한 것을 저장. 실패해도 나머지 기능은 동작 |
 | **규모** — 메모리 512MB, 무료 플랜 | 의존성은 Express 하나. DB 서버 · GPU · 대용량 파일 없음 |
 | **공개** — 공개해도 되는 데이터만 | 이름 · 가능한 시간 · 작업 제목만 저장. 학번 · 연락처 같은 정보는 받지 않습니다. `.env` 와 `data/` 는 커밋하지 않습니다 |
@@ -207,7 +209,7 @@ npm test
 server.js              서버 시작
 src/
   app.js               Express 앱 · 라우트 연결
-  routes/              members · tasks · recommend · summary · estimates · breakdown
+  routes/              members · tasks · progress · estimates · breakdown · loads · recommend
   lib/
     store.js           data/db.json 읽기 · 쓰기
     load.js            부담률 · 담당자 추천
@@ -242,6 +244,16 @@ team/                  역할 분담 · 개인별 지침서
 
 자세한 규칙은 [CONTRIBUTING.md](CONTRIBUTING.md)에 있습니다.
 
+## 일정
+
+| 구간 | 목표 | 상태 |
+|---|---|---|
+| 중간발표 전 | 세 기능의 기본 흐름이 한 번에 이어진다 — 등록 → 추정으로 크기 확정 → 추천 · 배정 → 완료하면 부담률 · 진행률 변화. LLM 호출과 실패 시 대체 동작 포함 | 예정 |
+| 중간발표 이후 | 피드백 반영, 예외 처리(잘못된 입력 · 가능한 시간 0 · 동률 · LLM 실패), 완료 작업 비중, 추정 근거, 배포 | 예정 |
+| 최종발표 전 | 과제 조건 전부 충족, 각자 테스트 5개 이상 통과, 배포 주소 접속, 각자 시연 리허설 | 예정 |
+
+구간별로 각자 할 일과 완성 기준은 [팀 브리프](team/README.md#일정--발표를-기준으로-세-구간)에 있습니다.
+
 ## 추가 구현 계획 (시간이 남으면)
 
 핵심 기능이 모두 끝난 뒤에만 시작합니다. 발표 범위에는 넣지 않습니다.
@@ -266,13 +278,15 @@ team/                  역할 분담 · 개인별 지침서
 
 ## 팀 — team03
 
-세 명이 각자 **화면 · 계산 규칙 · 서버 API**를 하나 이상씩 맡고, 최종 발표에서 자기 부분을 직접 시연합니다.
+앱의 기능을 셋으로 나누고, 각자 **자기 기능의 화면 · 계산 규칙 · 서버 API**를 모두 만듭니다. 최종 발표에서도 각자 자기 기능을 직접 시연합니다.
 
-| 담당 | 화면 | 계산 규칙 | 서버 API | 지침서 |
-|---|---|---|---|---|
-| **김권섭** [@kwonseop](https://github.com/kwonseop)<br/>작업 정하기 — AI 세분화 · 추정 · 추천 설명 | AI 세분화 제안, 블라인드 추정 | AI 응답 검사, 추정 요약(중앙값 · 의견 차이), 추천 근거 문장 | `POST /api/breakdown`<br/>`POST /api/tasks/:id/estimates` | [A](team/A-kwonseop.md) |
-| **박지호** [@parkjiho-1104](https://github.com/parkjiho-1104)<br/>나누기 — 저장 · 부담률 · 담당자 추천 | 부담률 막대, 담당자 추천 · 배정 | 작업 부담률, 담당자 추천 | `POST /api/recommend`<br/>`GET /api/summary` | [B](team/B-jiho.md) |
-| **우희태** [@Heetaeeee](https://github.com/Heetaeeee)<br/>관리하기 — 팀원 · 작업 · 진행률 | 팀원 등록, 작업 관리, 진행률 · 완료 작업 비중 | 입력값 검사, 진행률, D-day, 완료 작업 비중 | `/api/members`<br/>`/api/tasks` | [C](team/C-heetae.md) |
+| 기능 | 담당 | 화면 | 계산 규칙 | 서버 API | 지침서 |
+|---|---|---|---|---|---|
+| **등록 · 진행 관리**<br/>팀원과 작업을 등록하고 진행 상황을 보여준다 | 우희태<br/>[@Heetaeeee](https://github.com/Heetaeeee) | 팀원 등록, 작업 보드, 진행 현황 | 입력값 검사, 진행률, D-day, 완료 작업 비중 | `/api/members`<br/>`/api/tasks`<br/>`/api/progress` | [C](team/C-heetae.md) |
+| **작업 정의**<br/>큰 작업을 AI로 나누고 크기를 팀이 함께 정한다 | 김권섭<br/>[@kwonseop](https://github.com/kwonseop) | AI 세분화 제안, 블라인드 추정 | AI 응답 검사, 추정 요약(중앙값 · 의견 차이 · 근거) | `/api/breakdown`<br/>`/api/estimates` | [A](team/A-kwonseop.md) |
+| **분배**<br/>부담률을 계산하고 담당자를 근거와 함께 추천한다 | 박지호<br/>[@parkjiho-1104](https://github.com/parkjiho-1104) | 부담률 막대, 담당자 추천 · 배정 | 부담률, 담당자 추천, 추천 근거 문장 | `/api/loads`<br/>`/api/recommend` | [B](team/B-jiho.md) |
+
+공용 뼈대는 박지호가 서버(Express · 저장), 우희태가 화면(`index.html` · 공용 fetch 함수)을 먼저 깝니다.
 
 ## 오픈소스 · 출처
 
