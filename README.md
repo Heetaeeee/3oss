@@ -109,7 +109,7 @@ xychart-beta
 
 | | |
 |---|---|
-| 서버 | Node.js 20+ · Express |
+| 서버 | Node.js 22.9+ · Express |
 | 프론트엔드 | HTML / CSS / JavaScript (프레임워크 없음) |
 | 저장 | 서버의 JSON 파일 (`data/db.json`) |
 | AI | 서버에서 LLM API 호출 (Google Gemini 무료 등급) |
