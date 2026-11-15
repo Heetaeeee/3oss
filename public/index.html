@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3oss</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="page">
+  <!-- 공용 머리말: 네 화면이 똑같이 씁니다. 바꿀 때는 네 파일을 함께 고칩니다 -->
+  <header class="stack">
+    <h1>3oss</h1>
+    <nav class="nav" aria-label="화면">
+      <a href="./" aria-current="page">홈</a>
+      <a href="board.html">등록 · 진행</a>
+      <a href="sizing.html">작업 정의</a>
+      <a href="load.html">분배</a>
+    </nav>
+    <p id="app-error" class="msg-error" role="alert"></p>
+  </header>
+
+  <main class="stack stack--wide">
+    <p class="sub">가능한 시간과 맡은 작업으로 부담률을 계산하고, 새 작업을 누가 맡으면 공정한지 추천합니다.</p>
+    <a class="card stack" href="board.html">
+      <h2>1. 등록 · 진행</h2>
+      <p class="sub">팀원과 작업을 등록하고 작업 보드에서 상태를 바꿉니다.</p>
+    </a>
+    <a class="card stack" href="sizing.html">
+      <h2>2. 작업 정의</h2>
+      <p class="sub">큰 작업을 AI 제안으로 나누고, 각자 추정한 시간으로 작업 크기를 정합니다.</p>
+    </a>
+    <a class="card stack" href="load.html">
+      <h2>3. 분배</h2>
+      <p class="sub">팀원별 부담률을 보고, 추천을 참고해 담당자를 정합니다.</p>
+    </a>
+  </main>
+
+  <aside class="stack stack--wide">
+    <section id="progress" class="panel stack"><!-- C · js/board.js -->
+      <h2>진행 현황</h2>
+    </section>
+  </aside>
+</div>
+<script type="module" src="js/board.js"></script>
+<script type="module">import { start } from './js/api.js'; start();</script>
+</body>
+</html>
