@@ -2,6 +2,7 @@
 // 페이지마다 있는 자리만 그린다. 서버에서 온 글자는 전부 textContent 로만 넣는다.
 import { api, refresh } from './api.js';
 
+// 폼은 noValidate — 브라우저 기본 경고 대신 서버의 안내 문장을 폼 아래에 띄운다
 const $ = (s) => document.querySelector(s);
 const STATUS = { TODO: '할 일', DOING: '진행 중', DONE: '완료' };
 
@@ -61,7 +62,7 @@ if (memberSlot) {
   const hours = el('input', { type: 'number', min: 0, step: 0.5, required: true });
   const button = el('button', { className: 'btn', type: 'submit' }, '팀원 등록');
   const error = el('p', { className: 'msg-error', role: 'alert' });
-  const form = el('form', { className: 'stack slot' },
+  const form = el('form', { className: 'stack slot', noValidate: true },
     el('div', { className: 'row' }, field('이름', name), field('이번 주 가능한 시간(시간)', hours, 'field field--s'), button),
     error,
     el('p', { className: 'sub' }, '이름과 가능한 시간만 받습니다. 학번 · 연락처는 적지 마세요. 이 페이지는 공개됩니다.'));
@@ -81,7 +82,7 @@ if (taskFormSlot) {
   const due = el('input', { type: 'date' });
   const button = el('button', { className: 'btn btn--primary', type: 'submit' }, '작업 등록');
   const error = el('p', { className: 'msg-error', role: 'alert' });
-  const form = el('form', { className: 'stack' },
+  const form = el('form', { className: 'stack', noValidate: true },
     el('div', { className: 'row' }, field('작업 제목', title), field('마감일 (선택)', due), button), error);
   title.parentElement.style.flexGrow = 3;
   form.addEventListener('submit', (e) => {
