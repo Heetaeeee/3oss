@@ -16,6 +16,7 @@ function field(label, input, className = 'field') {
   return el('label', { className }, label, input);
 }
 
+// 폼은 noValidate — 브라우저 기본 경고 대신 서버의 안내 문장을 폼 아래에 띄운다 (보드와 같게)
 // 버튼을 잠근 채 요청 → 성공하면 refresh, 실패하면 서버 문장을 errorBox 에 띄우고 입력칸은 그대로 둔다
 async function act(button, errorBox, fn) {
   button.disabled = true;
@@ -86,7 +87,7 @@ function estimateForm(task, members, { label, primary, preferIds }) {
   const button = el('button', { className: primary ? 'btn btn--primary' : 'btn', type: 'submit' }, label);
   const error = el('p', { className: 'msg-error', role: 'alert' });
 
-  const form = el('form', { className: 'stack' },
+  const form = el('form', { className: 'stack', noValidate: true },
     el('div', { className: 'row' }, field('누구의 추정인가요', memberSelect), field('예상 시간', hours, 'field field--s')),
     field('근거 (선택)', reason),
     el('div', {}, button),
@@ -147,12 +148,17 @@ function confirmForm(task, median) {
   const hours = el('input', { type: 'number', min: '0.5', step: 'any', required: true, value: String(median), inputMode: 'decimal' });
   const button = el('button', { className: 'btn btn--primary', type: 'submit' }, '크기 확정');
   const error = el('p', { className: 'msg-error', role: 'alert' });
-  const form = el('form', { className: 'stack' },
+  const form = el('form', { className: 'stack', noValidate: true },
     el('div', { className: 'row' }, field('확정 크기(시간)', hours, 'field field--s'), button),
     el('p', { className: 'sub' }, `중앙값인 ${median}시간을 미리 넣어 두었습니다. 이야기해 보고 바꿔도 됩니다.`),
     error);
   form.addEventListener('submit', (e) => {
     e.preventDefault();
+    // 빈칸은 null 로 나가는데, 서버는 null 을 "크기 미정으로 되돌리기"로 받아 아무 안내 없이 통과시킨다
+    if (!Number.isFinite(hours.valueAsNumber)) {
+      error.textContent = '작업 크기는 0보다 큰 숫자로 입력해 주세요.';
+      return;
+    }
     act(button, error, () => api(`/api/tasks/${task.id}`, { method: 'PATCH', body: { hours: hours.valueAsNumber } }));
   });
   return form;
