@@ -17,7 +17,7 @@ router.post('/', (req, res) => {
   if (!v.ok) return res.status(400).json({ error: v.error });
   const task = {
     id: newId(), parentId: null, status: 'TODO', assigneeId: null, dueDate: null, hours: null,
-    ...v.value, estimates: {}, createdAt: new Date().toISOString(),
+    ...v.value, estimates: {}, createdAt: new Date().toISOString(), completedAt: null,
   };
   db.tasks.push(task);
   save(db);
@@ -30,6 +30,10 @@ router.patch('/:id', (req, res) => {
   if (!task) return res.status(404).json({ error: '작업을 찾을 수 없습니다.' });
   const v = validateTaskPatch(req.body, { memberIds: db.members.map((m) => m.id) });
   if (!v.ok) return res.status(400).json({ error: v.error });
+  // 주차별 수행률 · 지난주 요약용. 완료로 바뀔 때만 기록하고, 되돌리면 지운다
+  if ('status' in v.value && v.value.status !== task.status) {
+    task.completedAt = v.value.status === 'DONE' ? new Date().toISOString() : null;
+  }
   Object.assign(task, v.value);
   save(db);
   res.json(publicTask(task));
