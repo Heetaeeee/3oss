@@ -13,11 +13,27 @@ const dbPath = fileURLToPath(
     new URL('../../data/db.json', import.meta.url)
 );
 
+function validateData(db) {
+  if (
+    db === null ||
+    typeof db !== 'object' ||
+    Array.isArray(db) ||
+    !Array.isArray(db.members) ||
+    !Array.isArray(db.tasks)
+  ) {
+    throw new Error(
+      '저장 데이터 형식이 올바르지 않습니다. members와 tasks는 배열이어야 합니다.'
+    );
+  }
+
+  return db;
+}
+
 export function load() {
     try {
         const text = readFileSync(dbPath, 'utf8');
 
-        return JSON.parse(text);
+        return validateData(JSON.parse(text));
     }
     catch (error) {
         if (error.code === 'ENOENT') {
@@ -32,9 +48,9 @@ export function load() {
 }
 
 export function save(db) {
-  mkdirSync(dirname(dbPath), { recursive: true });
+ const text = JSON.stringify(validateData(db), null, 2);
 
-  const text = JSON.stringify(db, null, 2);
+  mkdirSync(dirname(dbPath), { recursive: true });
   const tempPath = `${dbPath}.${randomUUID()}.tmp`;
 
   try {
