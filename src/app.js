@@ -21,4 +21,34 @@ app.use('/api/loads', loadsRouter);
 app.use('/api', estimatesRouter);
 app.use('/api/breakdown', breakdownRouter);
 
+app.use((req, res) => {
+  res.status(404).json({
+    error: '요청한 경로를 찾을 수 없습니다.'
+  });
+});
+
+app.use((error, req, res, next) => {
+  if (res.headersSent) {
+    return next(error);
+  }
+
+  if (error.type === 'entity.parse.failed') {
+    return res.status(400).json({
+      error: '요청 본문의 JSON 형식을 확인해 주세요.'
+    });
+  }
+
+  if (error.type === 'entity.too.large') {
+    return res.status(413).json({
+      error: '요청 본문은 10KB 이하로 보내 주세요.'
+    });
+  }
+
+  console.error(error);
+
+  res.status(500).json({
+    error: '서버에서 요청을 처리하지 못했습니다.'
+  });
+});
+
 export default app;
