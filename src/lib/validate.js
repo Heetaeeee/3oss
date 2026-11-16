@@ -40,3 +40,18 @@ export function validateTask(body, { partial = false, memberIds = [], taskIds = 
     hours: [(v) => v === null || (isNum(v) && v > 0 && v <= 1000), '작업 크기는 0보다 큰 숫자로 입력해 주세요.'],
   }, partial);
 }
+
+const pick = (body, fields) =>
+  body !== null && typeof body === 'object'
+    ? Object.fromEntries(fields.filter((f) => f in body).map((f) => [f, body[f]]))
+    : body;
+
+// POST /api/tasks — 새 작업은 제목 · 마감일 · 상위 작업만 받는다. 상태 · 담당 · 크기는 기본값으로 시작
+export function validateNewTask(body, { taskIds = [] } = {}) {
+  return validateTask(pick(body, ['title', 'dueDate', 'parentId']), { taskIds });
+}
+
+// PATCH /api/tasks/:id — parentId 는 바꾸지 못한다 (서로를 상위 작업으로 두는 순환을 막으려고)
+export function validateTaskPatch(body, { memberIds = [] } = {}) {
+  return validateTask(pick(body, ['status', 'assigneeId', 'hours', 'dueDate', 'title']), { partial: true, memberIds });
+}
