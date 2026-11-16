@@ -48,3 +48,17 @@ test('실제로 없는 날짜는 거절한다', () => {
   assert.equal(validateTask({ dueDate: '12/01' }, { partial: true }).ok, false);
   assert.equal(validateTask({ dueDate: '2026-12-01' }, { partial: true }).ok, true);
 });
+
+import { validateNewTask, validateTaskPatch } from '../src/lib/validate.js';
+
+test('새 작업은 상태 · 담당 · 크기를 받지 않는다', () => {
+  const r = validateNewTask({ title: '발표', status: 'DONE', assigneeId: 'm1', hours: 3 });
+  assert.deepEqual(r, { ok: true, value: { title: '발표' } });
+});
+test('새 작업은 제목 · 마감일 · 상위 작업을 받는다', () => {
+  const r = validateNewTask({ title: '대본', dueDate: '2026-12-01', parentId: 't1' }, { taskIds: ['t1'] });
+  assert.deepEqual(r.value, { title: '대본', dueDate: '2026-12-01', parentId: 't1' });
+});
+test('작업 수정으로 상위 작업을 바꿀 수 없다', () => {
+  assert.deepEqual(validateTaskPatch({ parentId: 't2', status: 'DONE' }), { ok: true, value: { status: 'DONE' } });
+});
