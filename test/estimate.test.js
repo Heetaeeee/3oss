@@ -38,6 +38,20 @@ test("공개되면 근거도 함께 나간다", () => {
   const s = estimateSummary({ m1: e(3, "슬라이드 10장 기준"), m2: e(8) }, ["m1", "m2"]);
   assert.deepEqual(s.reasons, { m1: "슬라이드 10장 기준" });
 });
+test('한 번 공개된 뒤에는 새 팀원이 들어와도 공개를 유지한다', () => {
+  const s = estimateSummary({ m1: e(3), m2: e(4) }, ['m1', 'm2', 'm3'], true);
+  assert.equal(s.revealed, true);
+  assert.deepEqual(s.submittedIds, ['m1', 'm2']);
+  assert.deepEqual(s.values, { m1: 3, m2: 4 });
+  assert.equal(s.median, 3.5);
+});
+test('공개된 뒤 새 팀원이 내면 바로 반영한다', () => {
+  const s = estimateSummary({ m1: e(3), m2: e(4), m3: e(8, '디자인 포함') }, ['m1', 'm2', 'm3'], true);
+  assert.deepEqual(s.values, { m1: 3, m2: 4, m3: 8 });
+  assert.deepEqual(s.reasons, { m3: '디자인 포함' });
+  assert.equal(s.median, 4);
+  assert.equal(s.wideSpread, true);
+});
 test("전원이 내기 전에는 근거도 공개하지 않는다", () => {
   const s = estimateSummary({ m1: e(3, "슬라이드 10장 기준") }, ["m1", "m2"]);
   assert.equal("reasons" in s, false);
