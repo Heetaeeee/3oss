@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>작업 정의 — 3oss</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="page">
+  <header class="stack">
+    <h1>3oss</h1>
+    <nav class="nav" aria-label="화면">
+      <a href="./">홈</a>
+      <a href="board.html">등록 · 진행</a>
+      <a href="sizing.html" aria-current="page">작업 정의</a>
+      <a href="load.html">분배</a>
+    </nav>
+    <p id="app-error" class="msg-error" role="alert"></p>
+  </header>
+
+  <!-- A 김권섭 · js/sizing.js -->
+  <main class="stack stack--wide">
+    <section id="breakdown" class="panel panel--ai stack">
+      <h2>큰 작업 나누기</h2>
+    </section>
+    <section id="sizing" class="stack">
+      <h2>크기 추정</h2>
+    </section>
+  </main>
+</div>
+<script type="module" src="js/sizing.js"></script>
+<script type="module">import { start } from './js/api.js'; start();</script>
+</body>
+</html>
