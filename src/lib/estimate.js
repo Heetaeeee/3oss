@@ -21,3 +21,11 @@ export function estimateSummary(estimates, memberIds, wasRevealed = false) {
 
   return { revealed, submittedIds, values, reasons, median, wideSpread };
 }
+
+// 공개된 뒤의 값을 버전으로 쌓는다. 앞 버전은 지우지 않아 의견이 조율되는 과정이 남는다.
+// by: 이 버전을 만든 팀원 id. 처음 공개(전원 제출)면 null
+export function addVersion(history, summary, by, at) {
+  if (!summary.revealed) return history;
+  const { values, reasons, median } = summary;
+  return [...history, { version: history.length + 1, by, at, values, reasons, median }];
+}

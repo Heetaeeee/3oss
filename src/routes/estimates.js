@@ -1,7 +1,7 @@
 import { Router } from 'express';
 
 import { load, save } from '../lib/store.js';
-import { estimateSummary } from '../lib/estimate.js';
+import { estimateSummary, addVersion } from '../lib/estimate.js';
 
 const router = Router();
 
@@ -23,25 +23,33 @@ router.post('/tasks/:id/estimates', (req, res) => {
     return res.status(400).json({ error: '근거는 100자 이내로 적어 주세요.' });
   }
 
-  // 공개 전에 같은 사람이 다시 내면 덮어쓴다
+  // 공개 전에는 같은 사람이 다시 내면 조용히 덮어쓰고, 공개 뒤에는 고칠 때마다 버전이 쌓인다
+  const wasRevealed = Boolean(task.estimatesRevealed);
   task.estimates = { ...task.estimates, [memberId]: { hours, reason: reason?.trim() ?? '' } };
-  const estimate = estimateSummary(task.estimates, memberIds(db), task.estimatesRevealed);
+  const summary = estimateSummary(task.estimates, memberIds(db), wasRevealed);
   // 한 번 공개되면 기록해 둔다 — 나중에 팀원이 늘어도 다시 가려지지 않게
-  task.estimatesRevealed = estimate.revealed;
+  task.estimatesRevealed = summary.revealed;
+  task.estimateHistory = addVersion(task.estimateHistory ?? [], summary, wasRevealed ? memberId : null, new Date().toISOString());
   save(db);
 
-  res.json({ taskId: task.id, estimate });
+  res.json({ taskId: task.id, estimate: publicSummary(task, summary) });
 });
 
 // GET /api/estimates — 원본 estimates 대신 요약만 내보낸다
 router.get('/estimates', (req, res) => {
   const db = load();
   const ids = memberIds(db);
-  res.json(Object.fromEntries(db.tasks.map((t) => [t.id, estimateSummary(t.estimates ?? {}, ids, t.estimatesRevealed)])));
+  res.json(Object.fromEntries(db.tasks.map((t) =>
+    [t.id, publicSummary(t, estimateSummary(t.estimates ?? {}, ids, t.estimatesRevealed))])));
 });
 
 function memberIds(db) {
   return db.members.map((m) => m.id);
+}
+
+// 공개된 작업에만 버전 기록을 붙인다
+function publicSummary(task, summary) {
+  return summary.revealed ? { ...summary, history: task.estimateHistory ?? [] } : summary;
 }
 
 export default router;
