@@ -7,7 +7,7 @@
 | **화면** | 팀원 등록, 작업 보드, 진행률 · D-day · 완료 작업 비중 — `public/js/board.js` |
 | **계산 규칙** | 입력값 검사(`validate`), 진행률 · D-day · 완료 작업 비중(`progress`) |
 | **서버 API** | `GET · POST · PATCH /api/members`, `GET · POST · PATCH /api/tasks`, `GET /api/progress` |
-| **공용** | `public/index.html` · `public/js/api.js` (`style.css` 는 김권섭) |
+| **공용** | 홈과 기능별 페이지 `public/index.html` · `board.html` · `sizing.html` · `load.html` 의 틀, `public/js/api.js` (`style.css` 는 김권섭) |
 
 **안 맡는 것:** 부담률 · 담당자 추천(박지호), AI 세분화 · 블라인드 추정(김권섭)
 
@@ -17,9 +17,9 @@
 
 **모든 데이터가 들어오는 문이고, 모든 화면이 올라가는 바닥입니다.**
 
-팀원과 작업은 전부 C의 API로 들어옵니다. 여기서 잘못된 값(음수 시간, 빈 제목, 없는 담당자)을 막지 못하면 B의 부담률과 A의 추정이 전부 틀린 숫자를 냅니다. 그리고 A와 B의 화면은 C가 만든 작업 카드 안의 자리에 들어갑니다.
+팀원과 작업은 전부 C의 API로 들어옵니다. 여기서 잘못된 값(음수 시간, 빈 제목, 없는 담당자)을 막지 못하면 B의 부담률과 A의 추정이 전부 틀린 숫자를 냅니다. 그리고 A와 B의 화면은 C가 만든 페이지 틀(머리말 · 이동 메뉴 · 빈 구역) 위에 올라갑니다.
 
-**`index.html` 뼈대와 `api.js` 가 B의 스캐폴드와 함께 0순위입니다.** 반나절 안에 올려주세요.
+**네 페이지 뼈대와 `api.js` 가 B의 스캐폴드와 함께 0순위입니다.** 반나절 안에 올려주세요.
 
 ---
 
@@ -27,7 +27,7 @@
 
 | 순서 | 할 일 | 기다리는 것 | 완료 기준 |
 |---|---|---|---|
-| C-0 | `index.html` 뼈대 + `api.js` | 없음 | 빈 구역과 자리(`data-slot`)가 있고 `refresh()` 가 `'data'` 이벤트를 냄 |
+| C-0 | 네 페이지 뼈대 + `api.js` | 없음 | 네 페이지에 같은 머리말 · 메뉴와 빈 구역이 있고, 페이지를 열면 `refresh()` 가 `'data'` 이벤트를 냄 |
 | C-1 | `validate.js` + 테스트 | 없음 | 아래 테스트 통과 |
 | C-2 | `progress.js` + 테스트 | 없음 | 아래 테스트 통과 |
 | C-3 | `routes/members.js` · `tasks.js` · `progress.js` | B의 스캐폴드 · store | 형식이 [team/README.md](README.md)와 일치 |
@@ -39,34 +39,37 @@
 
 ---
 
-## C-0. 뼈대 — `index.html` · `api.js`
+## C-0. 뼈대 — 네 페이지 · `api.js`
 
-페이지는 하나입니다. **프레임워크 · 빌드 도구를 쓰지 않습니다.**
+한 화면에 다 넣지 않고 **홈에서 기능별 화면으로 넘어갑니다.** 페이지마다 자기 JS 하나만 불러오고, 각자 자기 페이지만 그립니다. **프레임워크 · 빌드 도구를 쓰지 않습니다.**
 
-```html
-<main>
-  <section id="members">   <!-- C: 팀원 등록 · 목록 -->
-  <section id="load">      <!-- B: 부담률 막대 -->
-  <section id="tasks">     <!-- C: 작업 등록 폼 + 보드 -->
-    <div id="breakdown">   <!-- A: AI 세분화 -->
-  <section id="progress">  <!-- C: 진행률 · 완료 작업 비중 -->
-</main>
-<script type="module" src="js/board.js"></script>
-<script type="module" src="js/load.js"></script>
-<script type="module" src="js/sizing.js"></script>
-```
-
-작업 카드 하나를 그릴 때 **A와 B의 자리를 비워 둡니다.**
+| 페이지 | `main` (왼쪽) | `aside` (오른쪽) | 불러오는 JS |
+|---|---|---|---|
+| `index.html` 홈 | 한 줄 소개 + 화면 이동 카드 셋 | `#progress` | `board.js` |
+| `board.html` 등록 · 진행 | `#task-form` · `#tasks` | `#members` · `#progress` | `board.js` |
+| `sizing.html` 작업 정의 | `#breakdown` · `#sizing` | 없음 | `sizing.js` (A) |
+| `load.html` 분배 | `#recommend` | `#load` | `load.js` (B) |
 
 ```html
-<article class="task" data-task-id="t1">
-  <!-- C: 제목 · 상태 · 담당자 · 크기 · D-day -->
-  <div data-slot="sizing"></div>      <!-- A: 블라인드 추정 -->
-  <div data-slot="recommend"></div>   <!-- B: 담당자 추천 -->
-</article>
+<!-- 네 페이지 공통 머리말. 바꿀 때는 네 파일을 함께 고친다 -->
+<header class="stack">
+  <h1>3oss</h1>
+  <nav class="nav" aria-label="화면">
+    <a href="./">홈</a>
+    <a href="board.html" aria-current="page">등록 · 진행</a>   <!-- 지금 화면에만 aria-current -->
+    <a href="sizing.html">작업 정의</a>
+    <a href="load.html">분배</a>
+  </nav>
+  <p id="app-error" class="msg-error" role="alert"></p>
+</header>
+...
+<script type="module" src="js/board.js"></script>   <!-- 그 페이지의 JS 하나 -->
+<script type="module">import { start } from './js/api.js'; start();</script>   <!-- 맨 끝에서 한 번 -->
 ```
 
-A와 B는 `'data'` 이벤트를 받을 때마다 자기 자리를 다시 채웁니다. 그러니 **C는 카드를 먼저 그린 뒤 이벤트가 나가게** 순서를 지킵니다 — `board.js` 를 `index.html` 에서 가장 먼저 불러오면 됩니다.
+- 각 구역에는 `h2` 제목만 넣어 두고, 안은 담당자의 JS 가 채웁니다.
+- **A와 B의 자리를 작업 카드 안에 만들지 않습니다.** 작업 목록이 필요한 A(크기 추정)와 B(담당자 추천)는 `'data'` 이벤트의 `tasks` 로 자기 페이지에 카드를 직접 그립니다. 카드 머리 모양은 [디자인 가이드](DESIGN.md)의 "작업 카드" 를 셋이 같이 따릅니다.
+- `start()` 는 각 화면 JS 가 `'data'` 를 듣기 시작한 뒤에 불러야 하므로 HTML 맨 끝에 둡니다.
 
 ### `public/js/api.js`
 
@@ -85,6 +88,13 @@ export async function api(path, options) {
 export async function refresh() {
   const [members, tasks] = await Promise.all([api("/api/members"), api("/api/tasks")]);
   document.dispatchEvent(new CustomEvent('data', { detail: { members, tasks } }));
+}
+
+// 페이지를 열 때 한 번. 실패하면 머리말의 #app-error 에 문장을 띄운다
+export function start() {
+  refresh().catch((error) => {
+    document.querySelector('#app-error').textContent = `데이터를 불러오지 못했습니다. ${error.message}`;
+  });
 }
 ```
 
@@ -289,7 +299,7 @@ router.post('/', (req, res) => {
 **작업 구역 (`#tasks`)**
 
 - 제목, 마감일(`<input type="date">`) → `POST /api/tasks`
-- 작업 카드: 제목 · 상태 · 담당자 · 크기 · D-day, 그리고 A · B의 빈 자리
+- 작업 카드: 제목 · 상태 · 담당자 · 크기 · D-day. 카드 머리 모양(제목 · 세부 작업 표시 · 배지 순서)은 A · B 화면의 카드와 같게
 - 상태는 `<select>` 할 일 / 진행 중 / 완료 → `PATCH /api/tasks/:id`
 - 담당자도 `<select>` (팀원 목록 + "미정")
 - 크기(`hours`)는 숫자 입력 → `PATCH /api/tasks/:id { hours }`. A의 추정 화면이 붙기 전에도 중간발표 목표 장면이 돌아가게 하는 입력입니다
@@ -341,7 +351,7 @@ router.post('/', (req, res) => {
 - [ ] 이름에 `<b>굵게</b>` 를 넣으면 글자 그대로 보인다
 - [ ] `GET /api/tasks` 응답에 `estimates` 원본이 없다
 - [ ] 본문에 `id` · `estimates` 를 넣어 PATCH 해도 바뀌지 않는다
-- [ ] A · B의 자리(`data-slot`)가 다시 그릴 때마다 살아 있다
+- [ ] 네 페이지의 머리말 메뉴가 같고, 지금 화면만 파랗게 표시된다
 - [ ] 휴대폰 폭에서 깨지지 않는다
 
 ## 발표 기준 일정
@@ -350,7 +360,7 @@ router.post('/', (req, res) => {
 
 | 구간 | 해야 할 일 | 위 순서 |
 |---|---|---|
-| **중간발표 전** | **`index.html` 뼈대 · `api.js` (반나절 안에)** → 입력값 검사 · 진행률 · D-day 규칙과 테스트 → `/api/members` · `/api/tasks` · `/api/progress`(진행률만) → 팀원 등록 · 작업 보드 → 진행률 표시 | C-0 ~ C-5 의 기본 흐름 |
+| **중간발표 전** | **네 페이지 뼈대 · `api.js` (반나절 안에)** → 입력값 검사 · 진행률 · D-day 규칙과 테스트 → `/api/members` · `/api/tasks` · `/api/progress`(진행률만) → 팀원 등록 · 작업 보드 → 진행률 표시 | C-0 ~ C-5 의 기본 흐름 |
 | **중간발표 이후** | 완료 작업 비중(규칙 · `/api/progress` 확장 · `75% · 6시간 / 8시간` 화면), D-day · 지난 작업 표시, 잘못된 입력마다 안내 문장, 허용하지 않은 필드 무시, 휴대폰 폭 · 키보드 조작 · 접근성 | C-2 ~ C-6 의 나머지 |
 | **최종발표 전 완성** | 테스트 21개 통과, 마무리 점검표 전부 체크, README의 기능 · API · 실행 방법을 실제 코드와 맞추기, 시연 리허설 | 마무리 점검표 |
 | 시간이 남으면 | 주차별 수행률 | 추가 구현 |

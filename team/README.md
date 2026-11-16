@@ -82,7 +82,7 @@ flowchart LR
 | 뼈대 | 담당 | 내용 |
 |---|---|---|
 | 서버 뼈대 | B | `package.json` · `server.js` · `src/app.js` (빈 라우터 7개 연결) · `src/lib/store.js` (JSON 파일 저장) |
-| 화면 뼈대 | C | `public/index.html` (구역과 자리) · `public/js/api.js` |
+| 화면 뼈대 | C | 홈과 기능별 페이지 `public/index.html` · `board.html` · `sizing.html` · `load.html` (같은 이동 메뉴와 각자의 자리) · `public/js/api.js` |
 | 공용 스타일 | A | `public/style.css` (토큰 · 공용 부품), [디자인 가이드](DESIGN.md) · [목업](design-mockup.html) |
 
 이슈 #4의 "역할 분배 설명"은 추천 결과를 설명하는 문장이라 **분배 기능(B)** 에 넣었습니다. 추천과 그 근거가 한 사람의 기능 안에 있어야 "각자 자기 기능의 화면 · 규칙 · API"가 성립합니다.
@@ -249,7 +249,7 @@ flowchart LR
 
 | | 먼저 (뼈대) | 계산 규칙 + 테스트 | 서버 API | 화면 |
 |---|---|---|---|---|
-| **C 우희태** | `index.html` 뼈대 · `api.js` | 입력값 검사, 진행률, D-day | `/api/members` · `/api/tasks` · `/api/progress` (진행률만) | 팀원 등록, 작업 보드, 진행률 |
+| **C 우희태** | 네 페이지 뼈대 · `api.js` | 입력값 검사, 진행률, D-day | `/api/members` · `/api/tasks` · `/api/progress` (진행률만) | 팀원 등록, 작업 보드, 진행률 |
 | **A 김권섭** | — | 추정 요약, AI 응답 검사 | `POST · GET` estimates, `POST /api/breakdown` (LLM 호출 + 실패 시 fallback) | 블라인드 추정(제출 → 공개 → 확정), 세분화 제안 목록 |
 | **B 박지호** | 스캐폴드 · `store.js` | 부담률, 담당자 추천, 근거 문장 | `/api/loads` · `/api/recommend` | 부담률 막대, 추천 · 배정 패널 |
 
@@ -356,7 +356,7 @@ completedAt: '2026-11-17T10:00:00.000Z'
 | A 작업 정의 | `src/lib/breakdown.js` · `estimate.js` · `llm.js`<br/>`src/routes/breakdown.js` · `estimates.js`<br/>`public/js/sizing.js`<br/>`test/breakdown.test.js` · `estimate.test.js` |
 | B 분배 | `src/lib/load.js` · `explain.js`<br/>`src/routes/loads.js` · `recommend.js`<br/>`public/js/load.js`<br/>`test/load.test.js` · `explain.test.js` |
 | 서버 뼈대 (B) | `package.json` · `server.js` · `src/app.js` · `src/lib/store.js` · `.env.example` |
-| 화면 뼈대 (C) | `public/index.html` · `public/js/api.js` |
+| 화면 뼈대 (C) | `public/index.html` · `board.html` · `sizing.html` · `load.html` · `public/js/api.js` |
 | 공용 스타일 (A) | `public/style.css` · `team/DESIGN.md` · `team/design-mockup.html` |
 
 남의 파일을 고쳐야 하면 고치기 전에 담당자에게 말하고, **커밋을 따로 냅니다.**
