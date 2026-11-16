@@ -27,5 +27,8 @@ export function estimateSummary(estimates, memberIds, wasRevealed = false) {
 export function addVersion(history, summary, by, at) {
   if (!summary.revealed) return history;
   const { values, reasons, median } = summary;
+  // 같은 값을 다시 낸 것은 조율이 아니므로 쌓지 않는다
+  const last = history.at(-1);
+  if (last && JSON.stringify([last.values, last.reasons]) === JSON.stringify([values, reasons])) return history;
   return [...history, { version: history.length + 1, by, at, values, reasons, median }];
 }
