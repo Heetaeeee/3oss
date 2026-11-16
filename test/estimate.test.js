@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { estimateSummary } from '../src/lib/estimate.js';
+import { estimateSummary, addVersion } from '../src/lib/estimate.js';
 
 const e = (hours, reason = "") => ({ hours, reason });
 
@@ -55,4 +55,21 @@ test('공개된 뒤 새 팀원이 내면 바로 반영한다', () => {
 test("전원이 내기 전에는 근거도 공개하지 않는다", () => {
   const s = estimateSummary({ m1: e(3, "슬라이드 10장 기준") }, ["m1", "m2"]);
   assert.equal("reasons" in s, false);
+});
+test('공개되지 않았으면 버전을 남기지 않는다', () => {
+  const s = estimateSummary({ m1: e(3) }, ['m1', 'm2']);
+  assert.deepEqual(addVersion([], s, 'm1', 'T1'), []);
+});
+test('처음 공개되면 ver 1 로 전원의 처음 값을 남긴다', () => {
+  const s = estimateSummary({ m1: e(3), m2: e(8, '디자인 포함') }, ['m1', 'm2']);
+  assert.deepEqual(addVersion([], s, null, 'T1'), [
+    { version: 1, by: null, at: 'T1', values: { m1: 3, m2: 8 }, reasons: { m2: '디자인 포함' }, median: 5.5 },
+  ]);
+});
+test('공개 뒤 수정하면 앞 버전을 두고 수정한 사람의 버전을 쌓는다', () => {
+  const v1 = addVersion([], estimateSummary({ m1: e(3), m2: e(8) }, ['m1', 'm2']), null, 'T1');
+  const v2 = addVersion(v1, estimateSummary({ m1: e(6), m2: e(8) }, ['m1', 'm2'], true), 'm1', 'T2');
+  const v3 = addVersion(v2, estimateSummary({ m1: e(6), m2: e(6) }, ['m1', 'm2'], true), 'm2', 'T3');
+  assert.deepEqual(v3.map((v) => [v.version, v.by, v.median]), [[1, null, 5.5], [2, 'm1', 7], [3, 'm2', 6]]);
+  assert.deepEqual(v3[0].values, { m1: 3, m2: 8 });
 });
