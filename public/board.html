@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>등록 · 진행 — 3oss</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="page">
+  <header class="stack">
+    <h1>3oss</h1>
+    <nav class="nav" aria-label="화면">
+      <a href="./">홈</a>
+      <a href="board.html" aria-current="page">등록 · 진행</a>
+      <a href="sizing.html">작업 정의</a>
+      <a href="load.html">분배</a>
+    </nav>
+    <p id="app-error" class="msg-error" role="alert"></p>
+  </header>
+
+  <!-- C 우희태 · js/board.js -->
+  <main class="stack stack--wide">
+    <section id="task-form" class="panel stack">
+      <h2>작업 등록</h2>
+    </section>
+    <section id="tasks" class="stack">
+      <h2>작업 보드</h2>
+    </section>
+  </main>
+
+  <aside class="stack stack--wide">
+    <section id="members" class="panel stack">
+      <h2>팀원</h2>
+    </section>
+    <section id="progress" class="panel stack">
+      <h2>진행 현황</h2>
+    </section>
+  </aside>
+</div>
+<script type="module" src="js/board.js"></script>
+<script type="module">import { start } from './js/api.js'; start();</script>
+</body>
+</html>

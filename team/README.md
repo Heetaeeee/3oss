@@ -178,14 +178,18 @@ flowchart LR
 
 ## 화면을 나눠 쓰는 법
 
-페이지는 `public/index.html` 하나입니다. C가 뼈대를 깔고, 각자 **자기 JS 파일이 자기 자리만** 채웁니다.
+한 화면에 다 넣지 않고, **홈에서 각자 화면으로 넘어갑니다.** 페이지마다 위쪽 머리말(이동 메뉴)은 같고, 각자 **자기 페이지 · 자기 JS 파일**만 고칩니다.
+작업 목록이 필요한 화면(A의 크기 추정, B의 담당자 추천)은 `'data'` 이벤트의 `tasks` 로 자기 화면에 직접 그립니다. 남의 작업 카드 안에 끼워 넣지 않습니다.
 색 · 글자 · 부품 · 상태별 모양은 [화면 디자인 가이드](DESIGN.md)와 [목업](design-mockup.html)을 따릅니다.
 
-| 자리 | 채우는 기능 · 파일 |
-|---|---|
-| `#members` · `#tasks` · `#progress` | C · `public/js/board.js` |
-| `#breakdown`, 작업 카드의 `[data-slot="sizing"]` | A · `public/js/sizing.js` |
-| `#load`, 작업 카드의 `[data-slot="recommend"]` | B · `public/js/load.js` |
+| 페이지 | 자리 | 채우는 기능 · 파일 |
+|---|---|---|
+| `index.html` (홈) | 각 화면으로 가는 카드, `#progress` | C · `public/js/board.js` |
+| `board.html` (등록 · 진행) | `#task-form` · `#tasks` · `#members` · `#progress` | C · `public/js/board.js` |
+| `sizing.html` (작업 정의) | `#breakdown` · `#sizing` | A · `public/js/sizing.js` |
+| `load.html` (분배) | `#load` · `#recommend` | B · `public/js/load.js` |
+
+머리말 메뉴를 바꿀 때는 네 페이지를 함께 고칩니다. 페이지를 열면 맨 끝의 `start()` 가 `refresh()` 를 한 번 부릅니다.
 
 ```js
 // public/js/api.js (C 작성)
