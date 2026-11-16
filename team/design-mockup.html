@@ -12,8 +12,12 @@
 <!-- ===== 목업 전용: 실제 코드에는 옮기지 않는다 ===== -->
 <style>
 .mock-note { background: var(--ink); color: var(--on-primary); padding: var(--s2) var(--s4); font-size: 14px;
-             display: flex; gap: var(--s4); flex-wrap: wrap; justify-content: space-between; align-items: center; }
+             display: flex; gap: var(--s4); flex-wrap: wrap; justify-content: space-between; align-items: center;
+             position: sticky; top: 0; z-index: 2; }
 .mock-note label { display: flex; gap: var(--s2); align-items: center; min-height: 32px; cursor: pointer; }
+.mock-page { max-width: 1200px; margin: var(--s6) auto 0; padding: 0 var(--s4); scroll-margin-top: var(--s6); }
+.mock-page p { border-top: 2px solid var(--ink); padding-top: var(--s3); font-size: 14px; font-weight: 600; }
+.mock-state { font-size: 14px; color: var(--sub); }
 body:has(#owners:checked) [data-owner] { outline: 2px dashed var(--ink); outline-offset: 3px; position: relative; }
 body:has(#owners:checked) [data-owner]::before { content: attr(data-owner); position: absolute; top: -12px; right: 12px; z-index: 1;
   background: var(--ink); color: var(--on-primary); font-size: 12px; font-weight: 600; padding: 0 var(--s2); border-radius: var(--s1); }
@@ -24,20 +28,84 @@ body:has(#owners:checked) [data-owner]::before { content: attr(data-owner); posi
 <body>
 
 <div class="mock-note">
-  <span>디자인 목업입니다. 버튼은 동작하지 않습니다. 창 폭을 줄이면 휴대폰 배치를 볼 수 있습니다.</span>
+  <span>디자인 목업입니다. 홈과 기능별 화면 네 개가 차례로 있고, 머리말 메뉴를 누르면 그 화면으로 이동합니다. 다른 버튼은 동작하지 않습니다.</span>
   <label><input type="checkbox" id="owners"> 담당 구역 표시</label>
 </div>
 
+<!-- ================================================================ -->
+<!-- ① 홈 — public/index.html (C)                                     -->
+<!-- ================================================================ -->
+<div class="mock-page" id="page-home"><p>① 홈 — index.html</p></div>
 <div class="page">
-  <header class="stack" style="gap:var(--s1)">
+  <!-- 공용 머리말: 네 화면이 똑같이 씁니다 -->
+  <header class="stack" data-owner="C 우희태, 공용 머리말">
     <h1>3oss</h1>
-    <p class="sub">가능한 시간과 맡은 작업으로 부담률을 계산하고, 새 작업을 누가 맡으면 공정한지 추천합니다.</p>
+    <nav class="nav" aria-label="화면">
+      <a href="#page-home" aria-current="page">홈</a>
+      <a href="#page-board">등록 · 진행</a>
+      <a href="#page-sizing">작업 정의</a>
+      <a href="#page-load">분배</a>
+    </nav>
   </header>
 
-  <!-- ================= 왼쪽: 작업 ================= -->
-  <main class="stack stack--wide">
+  <main class="stack stack--wide" data-owner="C 우희태, 홈">
+    <p class="sub">가능한 시간과 맡은 작업으로 부담률을 계산하고, 새 작업을 누가 맡으면 공정한지 추천합니다.</p>
+    <a class="card stack" href="#page-board">
+      <h2>1. 등록 · 진행</h2>
+      <p class="sub">팀원과 작업을 등록하고 작업 보드에서 상태를 바꿉니다.</p>
+    </a>
+    <a class="card stack" href="#page-sizing">
+      <h2>2. 작업 정의</h2>
+      <p class="sub">큰 작업을 AI 제안으로 나누고, 각자 추정한 시간으로 작업 크기를 정합니다.</p>
+    </a>
+    <a class="card stack" href="#page-load">
+      <h2>3. 분배</h2>
+      <p class="sub">팀원별 부담률을 보고, 추천을 참고해 담당자를 정합니다.</p>
+    </a>
+  </main>
 
-    <section class="panel stack" data-owner="C 우희태, 작업 등록">
+  <aside class="stack stack--wide">
+    <section class="panel stack" data-owner="C 우희태, #progress">
+      <h2>진행 현황</h2>
+      <div class="meter">
+        <div class="between"><span>전체 진행률</span><strong>22% · 2건 / 9건</strong></div>
+        <div class="bar bar--100" role="img" aria-label="전체 진행률 22%"><span class="bar-now" style="--v:22"></span></div>
+      </div>
+      <h3 class="slot">완료 작업 비중</h3>
+      <div class="meter">
+        <div class="between"><span class="who"><span class="avatar" aria-hidden="true">박</span>박지호</span><strong>50% · 3시간 / 6시간</strong></div>
+        <div class="bar bar--100" role="img" aria-label="완료 작업 비중 50%"><span class="bar-now" style="--v:50"></span></div>
+      </div>
+      <div class="meter">
+        <div class="between"><span class="who"><span class="avatar avatar--2" aria-hidden="true">김</span>김권섭</span><strong>50% · 3시간 / 6시간</strong></div>
+        <div class="bar bar--100" role="img" aria-label="완료 작업 비중 50%"><span class="bar-now" style="--v:50"></span></div>
+      </div>
+      <div class="meter">
+        <div class="between"><span class="who"><span class="avatar avatar--3" aria-hidden="true">우</span>우희태</span><strong>0% · 0시간 / 6시간</strong></div>
+        <div class="bar bar--100" role="img" aria-label="완료 작업 비중 0%"><span class="bar-now" style="--v:0"></span></div>
+      </div>
+      <p class="sub">확정한 예상 시간 기준입니다. 실제 기여와 다를 수 있습니다.</p>
+    </section>
+  </aside>
+</div>
+
+<!-- ================================================================ -->
+<!-- ② 등록 · 진행 — public/board.html (C)                             -->
+<!-- ================================================================ -->
+<div class="mock-page" id="page-board"><p>② 등록 · 진행 — board.html</p></div>
+<div class="page">
+  <header class="stack">
+    <h1>3oss</h1>
+    <nav class="nav" aria-label="화면">
+      <a href="#page-home">홈</a>
+      <a href="#page-board" aria-current="page">등록 · 진행</a>
+      <a href="#page-sizing">작업 정의</a>
+      <a href="#page-load">분배</a>
+    </nav>
+  </header>
+
+  <main class="stack stack--wide">
+    <section class="panel stack" data-owner="C 우희태, #task-form">
       <h2>작업 등록</h2>
       <div class="row">
         <label class="field" style="flex-grow:3">작업 제목 <input placeholder="예: 발표 자료 제작"></label>
@@ -46,127 +114,35 @@ body:has(#owners:checked) [data-owner]::before { content: attr(data-owner); posi
       </div>
     </section>
 
-    <section id="breakdown" class="panel panel--ai stack" data-owner="A 김권섭, #breakdown">
-      <div class="between">
-        <h2>큰 작업 나누기</h2>
-        <span class="badge badge--ai">AI 제안</span>
-      </div>
-      <div class="row">
-        <label class="field" style="flex-grow:3">나눌 작업 제목 <input value="발표 준비"></label>
-        <button class="btn">AI로 나누기</button>
-      </div>
-      <div>
-        <label class="check"><input type="checkbox" checked> 발표 자료 제작</label>
-        <label class="check"><input type="checkbox" checked> 대본 작성</label>
-        <label class="check"><input type="checkbox" checked> 발표 연습</label>
-        <label class="check"><input type="checkbox"> 질의응답 준비</label>
-        <label class="check"><input type="checkbox"> 리허설 영상 촬영</label>
-      </div>
-      <div class="between">
-        <p class="sub" style="color:var(--ai-ink)">작업 제목만 AI에 보냅니다. 팀원 이름과 시간은 보내지 않습니다.</p>
-        <button class="btn btn--primary">고른 3개 등록</button>
-      </div>
-    </section>
-
-    <section id="tasks" class="stack" data-owner="C 우희태, #tasks">
+    <section class="stack" data-owner="C 우희태, #tasks">
       <h2>작업 보드</h2>
       <div class="board">
 
         <!-- 할 일 -->
         <div class="stack">
           <div class="between"><h3>할 일</h3><span class="badge">4</span></div>
-
-          <!-- 크기 확정, 담당 미정 → 추천 -->
           <article class="card stack">
             <div class="between"><h3>발표 자료 제작</h3>
               <select class="status" aria-label="상태"><option selected>할 일</option><option>진행 중</option><option>완료</option></select></div>
-            <div class="badges">
-              <span class="badge">D-8</span>
-              <span class="badge badge--team">4시간 확정</span>
-              <span class="badge badge--todo">담당 미정</span>
-            </div>
-            <div class="slot stack" data-slot="recommend" data-owner="B 박지호, recommend">
-              <h3>담당자 추천</h3>
-              <p>박지호 님이 맡으면 부담률이 30% → 70%로 가장 낮습니다.</p>
-              <div class="pick">
-                <div class="meter">
-                  <div class="between"><span class="who"><span class="avatar" aria-hidden="true">박</span>박지호 <span class="badge badge--primary">추천</span></span><strong>30% → 70%</strong></div>
-                  <div class="bar" role="img" aria-label="현재 30%, 맡으면 70%"><span class="bar-next" style="--v:70"></span><span class="bar-now" style="--v:30"></span></div>
-                </div>
-                <button class="btn btn--primary btn--s">배정</button>
-              </div>
-              <div class="pick">
-                <div class="meter">
-                  <div class="between"><span class="who"><span class="avatar avatar--2" aria-hidden="true">김</span>김권섭</span><strong>60% → 100%</strong></div>
-                  <div class="bar" role="img" aria-label="현재 60%, 맡으면 100%"><span class="bar-next" style="--v:100"></span><span class="bar-now" style="--v:60"></span></div>
-                </div>
-                <button class="btn btn--s">배정</button>
-              </div>
-              <div class="pick">
-                <div class="meter">
-                  <div class="between"><span class="who"><span class="avatar avatar--3" aria-hidden="true">우</span>우희태</span><strong class="over">80% → 120% 과부하</strong></div>
-                  <div class="bar" role="img" aria-label="현재 80%, 맡으면 120% 과부하"><span class="bar-next" style="--v:120"></span><span class="bar-now" style="--v:80"></span></div>
-                </div>
-                <button class="btn btn--s">배정</button>
-              </div>
-              <p class="sub">추천은 참고 자료입니다. 담당자는 팀이 정합니다.</p>
-            </div>
+            <p class="sub">↳ 발표 준비의 세부 작업</p>
+            <div class="badges"><span class="badge">D-8</span><span class="badge badge--team">4시간 확정</span><span class="badge badge--todo">담당 미정</span></div>
           </article>
-
-          <!-- 전원 제출 → 공개 → 확정 -->
           <article class="card stack">
             <div class="between"><h3>대본 작성</h3>
               <select class="status" aria-label="상태"><option selected>할 일</option><option>진행 중</option><option>완료</option></select></div>
-            <div class="badges">
-              <span class="badge">D-10</span>
-              <span class="badge badge--todo">크기 미정</span>
-              <span class="badge badge--todo">담당 미정</span>
-            </div>
-            <div class="slot stack" data-slot="sizing" data-owner="A 김권섭, sizing">
-              <div class="between"><h3>크기 추정</h3><span class="badge badge--over">의견 차이 큼</span></div>
-              <div class="est">
-                <span class="who"><span class="avatar avatar--2" aria-hidden="true">김</span>김권섭</span><strong>3시간</strong><span class="sub">발표 5분 분량 기준</span>
-                <span class="who"><span class="avatar" aria-hidden="true">박</span>박지호</span><strong>4시간</strong><span class="sub">근거 없음</span>
-                <span class="who"><span class="avatar avatar--3" aria-hidden="true">우</span>우희태</span><strong>8시간</strong><span class="sub">질의응답 답변까지 포함</span>
-              </div>
-              <div class="row">
-                <label class="field">확정 크기(시간) <input type="number" value="4" min="0"></label>
-                <button class="btn btn--primary">크기 확정</button>
-              </div>
-              <p class="sub">중앙값인 4시간을 미리 넣어 두었습니다. 이야기해 보고 바꿔도 됩니다.</p>
-            </div>
+            <p class="sub">↳ 발표 준비의 세부 작업</p>
+            <div class="badges"><span class="badge">D-10</span><span class="badge badge--todo">크기 미정</span><span class="badge badge--todo">담당 미정</span></div>
           </article>
-
-          <!-- 일부만 제출 → 값 숨김 -->
           <article class="card stack">
             <div class="between"><h3>발표 연습</h3>
               <select class="status" aria-label="상태"><option selected>할 일</option><option>진행 중</option><option>완료</option></select></div>
-            <div class="badges">
-              <span class="badge">D-12</span>
-              <span class="badge badge--todo">크기 미정</span>
-              <span class="badge badge--todo">담당 미정</span>
-            </div>
-            <div class="slot stack" data-slot="sizing" data-owner="A 김권섭, sizing">
-              <div class="between"><h3>크기 추정</h3><span class="badge">1 / 3 제출</span></div>
-              <p class="sub">김권섭 님이 제출했습니다. 값은 전원이 낸 뒤 함께 공개됩니다.</p>
-              <div class="row">
-                <label class="field">누구의 추정인가요 <select><option>박지호</option><option>우희태</option></select></label>
-                <label class="field field--s">예상 시간 <input type="number" min="0" placeholder="0"></label>
-              </div>
-              <label class="field">근거 (선택) <input placeholder="예: 리허설 2번 기준"></label>
-              <div><button class="btn btn--primary">추정 제출</button></div>
-            </div>
+            <p class="sub">↳ 발표 준비의 세부 작업</p>
+            <div class="badges"><span class="badge">D-12</span><span class="badge badge--todo">크기 미정</span><span class="badge badge--todo">담당 미정</span></div>
           </article>
-
-          <!-- 크기 · 담당 모두 정해짐 -->
           <article class="card stack">
             <div class="between"><h3>배포 준비</h3>
               <select class="status" aria-label="상태"><option selected>할 일</option><option>진행 중</option><option>완료</option></select></div>
-            <div class="badges">
-              <span class="badge">D-14</span>
-              <span class="badge badge--team">3시간 확정</span>
-              <span class="badge badge--team">담당 우희태</span>
-            </div>
+            <div class="badges"><span class="badge">D-14</span><span class="badge badge--team">3시간 확정</span><span class="badge badge--team">담당 우희태</span></div>
           </article>
         </div>
 
@@ -208,10 +184,8 @@ body:has(#owners:checked) [data-owner]::before { content: attr(data-owner); posi
     </section>
   </main>
 
-  <!-- ================= 오른쪽: 팀 ================= -->
   <aside class="stack stack--wide">
-
-    <section id="members" class="panel stack" data-owner="C 우희태, #members">
+    <section class="panel stack" data-owner="C 우희태, #members">
       <h2>팀원</h2>
       <div class="between"><span class="who"><span class="avatar" aria-hidden="true">박</span>박지호</span><span class="sub">이번 주 10시간 <button class="btn btn--quiet btn--s">수정</button></span></div>
       <div class="between"><span class="who"><span class="avatar avatar--2" aria-hidden="true">김</span>김권섭</span><span class="sub">이번 주 10시간 <button class="btn btn--quiet btn--s">수정</button></span></div>
@@ -223,7 +197,162 @@ body:has(#owners:checked) [data-owner]::before { content: attr(data-owner); posi
       </div>
     </section>
 
-    <section id="load" class="panel stack" data-owner="B 박지호, #load">
+    <section class="panel stack" data-owner="C 우희태, #progress">
+      <h2>진행 현황</h2>
+      <div class="meter">
+        <div class="between"><span>전체 진행률</span><strong>22% · 2건 / 9건</strong></div>
+        <div class="bar bar--100" role="img" aria-label="전체 진행률 22%"><span class="bar-now" style="--v:22"></span></div>
+      </div>
+      <p class="sub">완료 작업 비중은 홈 화면과 같습니다.</p>
+    </section>
+  </aside>
+</div>
+
+<!-- ================================================================ -->
+<!-- ③ 작업 정의 — public/sizing.html (A)                              -->
+<!-- ================================================================ -->
+<div class="mock-page" id="page-sizing"><p>③ 작업 정의 — sizing.html</p></div>
+<div class="page">
+  <header class="stack">
+    <h1>3oss</h1>
+    <nav class="nav" aria-label="화면">
+      <a href="#page-home">홈</a>
+      <a href="#page-board">등록 · 진행</a>
+      <a href="#page-sizing" aria-current="page">작업 정의</a>
+      <a href="#page-load">분배</a>
+    </nav>
+  </header>
+
+  <main class="stack stack--wide">
+    <p class="mock-state">아래 큰 작업 나누기는 AI 제안이 도착한 상태입니다. 처음 화면은 노랑이 아닌 일반 패널입니다(맨 아래 상태 모음).</p>
+    <section class="panel panel--ai stack" data-owner="A 김권섭, #breakdown">
+      <div class="between">
+        <h2>큰 작업 나누기</h2>
+        <span class="badge badge--ai">AI 제안</span>
+      </div>
+      <div class="row">
+        <label class="field" style="flex-grow:3">나눌 작업 제목 <input value="발표 준비"></label>
+        <button class="btn">AI로 나누기</button>
+      </div>
+      <div>
+        <label class="check"><input type="checkbox" checked> 발표 자료 제작</label>
+        <label class="check"><input type="checkbox" checked> 대본 작성</label>
+        <label class="check"><input type="checkbox" checked> 발표 연습</label>
+        <label class="check"><input type="checkbox"> 질의응답 준비</label>
+        <label class="check"><input type="checkbox"> 리허설 영상 촬영</label>
+      </div>
+      <div class="between">
+        <p class="sub" style="color:var(--ai-ink)">작업 제목만 AI에 보냅니다. 팀원 이름과 시간은 보내지 않습니다.</p>
+        <button class="btn btn--primary">고른 3개 등록</button>
+      </div>
+    </section>
+
+    <section class="stack" data-owner="A 김권섭, #sizing">
+      <h2>크기 추정</h2>
+
+      <!-- 전원 제출 → 공개 → 확정 -->
+      <article class="card stack">
+        <h3>대본 작성</h3>
+        <p class="sub">↳ 발표 준비의 세부 작업</p>
+        <div class="badges"><span class="badge">D-10</span><span class="badge badge--todo">크기 미정</span><span class="badge badge--todo">담당 미정</span></div>
+        <div class="slot stack">
+          <div class="between"><h3>크기 추정</h3><span class="badge badge--over">의견 차이 큼</span></div>
+          <div class="est">
+            <span class="who"><span class="avatar avatar--2" aria-hidden="true">김</span>김권섭</span><strong>3시간</strong><span class="sub">발표 5분 분량 기준</span>
+            <span class="who"><span class="avatar" aria-hidden="true">박</span>박지호</span><strong>4시간</strong><span class="sub">근거 없음</span>
+            <span class="who"><span class="avatar avatar--3" aria-hidden="true">우</span>우희태</span><strong>8시간</strong><span class="sub">질의응답 답변까지 포함</span>
+          </div>
+          <div class="row">
+            <label class="field">확정 크기(시간) <input type="number" value="4" min="0"></label>
+            <button class="btn btn--primary">크기 확정</button>
+          </div>
+          <p class="sub">중앙값인 4시간을 미리 넣어 두었습니다. 이야기해 보고 바꿔도 됩니다.</p>
+        </div>
+      </article>
+
+      <!-- 일부만 제출 → 값 숨김 -->
+      <article class="card stack">
+        <h3>발표 연습</h3>
+        <p class="sub">↳ 발표 준비의 세부 작업</p>
+        <div class="badges"><span class="badge">D-12</span><span class="badge badge--todo">크기 미정</span><span class="badge badge--todo">담당 미정</span></div>
+        <div class="slot stack">
+          <div class="between"><h3>크기 추정</h3><span class="badge">1 / 3 제출</span></div>
+          <p class="sub">김권섭 님이 제출했습니다. 값은 전원이 낸 뒤 함께 공개됩니다.</p>
+          <div class="row">
+            <label class="field">누구의 추정인가요 <select><option>박지호</option><option>우희태</option></select></label>
+            <label class="field field--s">예상 시간 <input type="number" min="0" placeholder="0"></label>
+          </div>
+          <label class="field">근거 (선택) <input placeholder="예: 리허설 2번 기준"></label>
+          <div><button class="btn btn--primary">추정 제출</button></div>
+        </div>
+      </article>
+
+      <!-- 확정 뒤 → 배지만, 목록 아래쪽 -->
+      <article class="card stack">
+        <h3>발표 자료 제작</h3>
+        <p class="sub">↳ 발표 준비의 세부 작업</p>
+        <div class="badges"><span class="badge">D-8</span><span class="badge badge--team">4시간 확정</span><span class="badge badge--todo">담당 미정</span></div>
+      </article>
+    </section>
+  </main>
+</div>
+
+<!-- ================================================================ -->
+<!-- ④ 분배 — public/load.html (B)                                     -->
+<!-- ================================================================ -->
+<div class="mock-page" id="page-load"><p>④ 분배 — load.html</p></div>
+<div class="page">
+  <header class="stack">
+    <h1>3oss</h1>
+    <nav class="nav" aria-label="화면">
+      <a href="#page-home">홈</a>
+      <a href="#page-board">등록 · 진행</a>
+      <a href="#page-sizing">작업 정의</a>
+      <a href="#page-load" aria-current="page">분배</a>
+    </nav>
+  </header>
+
+  <main class="stack stack--wide">
+    <section class="stack" data-owner="B 박지호, #recommend">
+      <h2>담당자 추천</h2>
+
+      <!-- 크기 확정 + 담당 미정 → 추천 -->
+      <article class="card stack">
+        <h3>발표 자료 제작</h3>
+        <p class="sub">↳ 발표 준비의 세부 작업</p>
+        <div class="badges"><span class="badge">D-8</span><span class="badge badge--team">4시간 확정</span><span class="badge badge--todo">담당 미정</span></div>
+        <div class="slot stack">
+          <h3>담당자 추천</h3>
+          <p>박지호 님이 맡으면 부담률이 30% → 70%로 가장 낮습니다.</p>
+          <div class="pick">
+            <div class="meter">
+              <div class="between"><span class="who"><span class="avatar" aria-hidden="true">박</span>박지호 <span class="badge badge--primary">추천</span></span><strong>30% → 70%</strong></div>
+              <div class="bar" role="img" aria-label="현재 30%, 맡으면 70%"><span class="bar-next" style="--v:70"></span><span class="bar-now" style="--v:30"></span></div>
+            </div>
+            <button class="btn btn--primary btn--s">배정</button>
+          </div>
+          <div class="pick">
+            <div class="meter">
+              <div class="between"><span class="who"><span class="avatar avatar--2" aria-hidden="true">김</span>김권섭</span><strong>60% → 100%</strong></div>
+              <div class="bar" role="img" aria-label="현재 60%, 맡으면 100%"><span class="bar-next" style="--v:100"></span><span class="bar-now" style="--v:60"></span></div>
+            </div>
+            <button class="btn btn--s">배정</button>
+          </div>
+          <div class="pick">
+            <div class="meter">
+              <div class="between"><span class="who"><span class="avatar avatar--3" aria-hidden="true">우</span>우희태</span><strong class="over">80% → 120% 과부하</strong></div>
+              <div class="bar" role="img" aria-label="현재 80%, 맡으면 120% 과부하"><span class="bar-next" style="--v:120"></span><span class="bar-now" style="--v:80"></span></div>
+            </div>
+            <button class="btn btn--s">배정</button>
+          </div>
+          <p class="sub">추천은 참고 자료입니다. 담당자는 팀이 정합니다.</p>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <aside class="stack stack--wide">
+    <section class="panel stack" data-owner="B 박지호, #load">
       <h2>부담률</h2>
       <div class="meter">
         <div class="between"><span class="who"><span class="avatar" aria-hidden="true">박</span>박지호</span><strong>30%</strong></div>
@@ -238,28 +367,6 @@ body:has(#owners:checked) [data-owner]::before { content: attr(data-owner); posi
         <div class="bar" role="img" aria-label="부담률 80%"><span class="bar-now" style="--v:80"></span></div>
       </div>
       <p class="sub">세로선이 가능한 시간의 100%입니다. 넘으면 과부하로 표시합니다.</p>
-    </section>
-
-    <section id="progress" class="panel stack" data-owner="C 우희태, #progress">
-      <h2>진행 현황</h2>
-      <div class="meter">
-        <div class="between"><span>전체 진행률</span><strong>22% · 2건 / 9건</strong></div>
-        <div class="bar bar--100" role="img" aria-label="전체 진행률 22%"><span class="bar-now" style="--v:22"></span></div>
-      </div>
-      <h3 class="slot">완료 작업 비중</h3>
-      <div class="meter">
-        <div class="between"><span class="who"><span class="avatar" aria-hidden="true">박</span>박지호</span><strong>50% · 3시간 / 6시간</strong></div>
-        <div class="bar bar--100" role="img" aria-label="완료 작업 비중 50%"><span class="bar-now" style="--v:50"></span></div>
-      </div>
-      <div class="meter">
-        <div class="between"><span class="who"><span class="avatar avatar--2" aria-hidden="true">김</span>김권섭</span><strong>50% · 3시간 / 6시간</strong></div>
-        <div class="bar bar--100" role="img" aria-label="완료 작업 비중 50%"><span class="bar-now" style="--v:50"></span></div>
-      </div>
-      <div class="meter">
-        <div class="between"><span class="who"><span class="avatar avatar--3" aria-hidden="true">우</span>우희태</span><strong>0% · 0시간 / 6시간</strong></div>
-        <div class="bar bar--100" role="img" aria-label="완료 작업 비중 0%"><span class="bar-now" style="--v:0"></span></div>
-      </div>
-      <p class="sub">확정한 예상 시간 기준입니다. 실제 기여와 다를 수 있습니다.</p>
     </section>
   </aside>
 
@@ -283,6 +390,21 @@ body:has(#owners:checked) [data-owner]::before { content: attr(data-owner); posi
       <p class="sub">팀원을 먼저 등록하면 부담률이 여기에 표시됩니다.</p>
     </section>
 
+    <section class="panel stack" data-owner="공용, #app-error">
+      <h3>데이터를 못 불러왔을 때</h3>
+      <p class="msg-error" role="alert">데이터를 불러오지 못했습니다. 요청을 처리하지 못했습니다.</p>
+      <p class="sub">머리말의 #app-error 에 나옵니다. 평소에는 비어 있어 보이지 않습니다.</p>
+    </section>
+
+    <section class="panel stack" data-owner="A 김권섭, #breakdown 처음">
+      <h3>큰 작업 나누기 — 처음</h3>
+      <div class="row">
+        <label class="field" style="flex-grow:3">나눌 작업 제목 <input placeholder="예: 발표 준비"></label>
+        <button class="btn btn--primary">AI로 나누기</button>
+      </div>
+      <p class="sub">작업 제목만 AI에 보냅니다. 팀원 이름과 시간은 보내지 않습니다.</p>
+    </section>
+
     <section class="panel stack" data-owner="A 김권섭">
       <div class="between"><h3>AI 제안을 못 받았을 때</h3><span class="badge">직접 입력</span></div>
       <p class="sub">AI 제안을 불러오지 못했습니다. 세부 작업을 직접 적어 주세요.</p>
@@ -292,8 +414,9 @@ body:has(#owners:checked) [data-owner]::before { content: attr(data-owner); posi
     </section>
 
     <section class="panel stack" data-owner="A 김권섭">
-      <div class="between"><h3>크기 확정 뒤</h3><span class="badge badge--team">4시간 확정</span></div>
-      <p class="sub">추정 칸은 닫히고 배지만 남습니다. 다시 제출할 수 없습니다.</p>
+      <h3>추정할 수 없을 때</h3>
+      <p class="sub">팀원을 먼저 등록해 주세요. <a href="#page-board">등록 · 진행 화면으로</a></p>
+      <p class="sub">등록된 작업이 없습니다. 위에서 큰 작업을 나누거나 등록 · 진행 화면에서 작업을 추가해 주세요.</p>
     </section>
 
     <section class="panel stack" data-owner="B 박지호">
@@ -313,6 +436,11 @@ body:has(#owners:checked) [data-owner]::before { content: attr(data-owner); posi
       <h3>추천할 사람이 없을 때</h3>
       <p>추천할 수 있는 팀원이 없습니다. 가능한 시간을 먼저 등록하세요.</p>
       <p class="sub">제외: 새 팀원 (가능한 시간 0시간)</p>
+    </section>
+
+    <section class="panel stack" data-owner="B 박지호">
+      <h3>추천할 작업이 없을 때</h3>
+      <p class="sub">담당자를 정할 작업이 없습니다. 작업 정의 화면에서 크기를 먼저 확정해 주세요.</p>
     </section>
 
     <section class="panel stack" data-owner="공용">
