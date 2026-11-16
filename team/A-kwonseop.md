@@ -36,7 +36,7 @@
 | A-6 | 세분화 화면 | C의 작업 등록 폼 | AI가 꺼져도 직접 입력으로 등록 |
 | A-7 | 실패 경로 점검, 프롬프트 다듬기 | 전체 | 아래 점검표 |
 
-A-1 · A-2는 아무것도 기다리지 않습니다. `package.json` 이 없어도 `node --test test/` 로 돌아갑니다.
+A-1 · A-2는 아무것도 기다리지 않습니다. `package.json` 이 없어도 `node --test` 로 돌아갑니다 (Node 22 이상에서는 `node --test test/` 처럼 폴더를 주면 실패합니다).
 
 **커밋은 표의 한 줄이 한 커밋 이상입니다.** 규칙 · 테스트 · API · 화면을 한 커밋에 섞지 않습니다. 예: `Test: AI 응답 검사 케이스 추가` → `Feat: AI 응답에서 제목 배열만 추출` → `Feat: 세부 작업 제안 API 추가` → `Feat: 세분화 제안 체크박스 화면`.
 
@@ -113,23 +113,31 @@ test('7개까지만 남긴다', () => {
 ```js
 // estimates: { 팀원 id: { hours, reason } }
 // 전원이 내기 전에는 values · reasons 를 담지 않는다
-export function estimateSummary(estimates, memberIds)
+// wasRevealed: 작업의 estimatesRevealed. 이미 한 번 공개된 작업이면 true
+export function estimateSummary(estimates, memberIds, wasRevealed = false)
 // → { revealed: false, submittedIds }
 // → { revealed: true, submittedIds, values, reasons, median, wideSpread }
+
+// 공개된 뒤의 값을 버전으로 쌓는다. 공개 전(revealed: false)이거나 앞 버전과 값 · 근거가 같으면 history 를 그대로 돌려준다
+// by: 이 버전을 만든 팀원 id. 처음 공개(전원 제출)면 null
+export function addVersion(history, summary, by, at)
+// → [...history, { version, by, at, values, reasons, median }]
 ```
 
 | 규칙 | |
 |---|---|
 | 공개 조건 | 현재 팀원 **전원**이 제출했을 때만 `revealed: true`. 팀원이 0명이면 `false` |
+| 공개 유지 | 한 번 공개된 작업(`wasRevealed`)은 팀원이 늘어도 `revealed: true` 를 유지한다. 새 팀원의 추정은 내는 즉시 `values` · `median` · `wideSpread` 에 반영 |
 | 탈퇴한 팀원의 값 | `memberIds` 에 없는 id 의 추정은 무시 |
 | 중앙값 | 짝수 개면 가운데 두 값의 평균 |
 | 의견 차이 | 최댓값 ≥ 최솟값 × 2 이면 `wideSpread: true` |
 | 근거 | 공개될 때 추정값과 함께 `reasons` 로 나간다. 근거를 적지 않은 사람은 `reasons` 에 넣지 않는다 |
+| 수정 기록 (버전) | 처음 공개되는 순간 전원의 값을 **ver 1** 로 남긴다. 공개 뒤 누가 값을 고치면(새 팀원의 첫 제출 포함) 앞 버전은 그대로 두고 **고친 사람과 함께 다음 버전**을 쌓는다. 공개 전의 재제출은 블라인드라 기록하지 않는다 |
 
 ```js
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { estimateSummary } from '../src/lib/estimate.js';
+import { estimateSummary, addVersion } from '../src/lib/estimate.js';
 
 const e = (hours, reason = "") => ({ hours, reason });
 
@@ -171,6 +179,37 @@ test("전원이 내기 전에는 근거도 공개하지 않는다", () => {
   const s = estimateSummary({ m1: e(3, "슬라이드 10장 기준") }, ["m1", "m2"]);
   assert.equal("reasons" in s, false);
 });
+test('한 번 공개된 뒤에는 새 팀원이 들어와도 공개를 유지한다', () => {
+  const s = estimateSummary({ m1: e(3), m2: e(4) }, ['m1', 'm2', 'm3'], true);
+  assert.equal(s.revealed, true);
+  assert.deepEqual(s.submittedIds, ['m1', 'm2']);
+  assert.deepEqual(s.values, { m1: 3, m2: 4 });
+  assert.equal(s.median, 3.5);
+});
+test('공개된 뒤 새 팀원이 내면 바로 반영한다', () => {
+  const s = estimateSummary({ m1: e(3), m2: e(4), m3: e(8, '디자인 포함') }, ['m1', 'm2', 'm3'], true);
+  assert.deepEqual(s.values, { m1: 3, m2: 4, m3: 8 });
+  assert.deepEqual(s.reasons, { m3: '디자인 포함' });
+  assert.equal(s.median, 4);
+  assert.equal(s.wideSpread, true);
+});
+test('공개되지 않았으면 버전을 남기지 않는다', () => {
+  const s = estimateSummary({ m1: e(3) }, ['m1', 'm2']);
+  assert.deepEqual(addVersion([], s, 'm1', 'T1'), []);
+});
+test('처음 공개되면 ver 1 로 전원의 처음 값을 남긴다', () => {
+  const s = estimateSummary({ m1: e(3), m2: e(8, '디자인 포함') }, ['m1', 'm2']);
+  assert.deepEqual(addVersion([], s, null, 'T1'), [
+    { version: 1, by: null, at: 'T1', values: { m1: 3, m2: 8 }, reasons: { m2: '디자인 포함' }, median: 5.5 },
+  ]);
+});
+test('공개 뒤 수정하면 앞 버전을 두고 수정한 사람의 버전을 쌓는다', () => {
+  const v1 = addVersion([], estimateSummary({ m1: e(3), m2: e(8) }, ['m1', 'm2']), null, 'T1');
+  const v2 = addVersion(v1, estimateSummary({ m1: e(6), m2: e(8) }, ['m1', 'm2'], true), 'm1', 'T2');
+  const v3 = addVersion(v2, estimateSummary({ m1: e(6), m2: e(6) }, ['m1', 'm2'], true), 'm2', 'T3');
+  assert.deepEqual(v3.map((v) => [v.version, v.by, v.median]), [[1, null, 5.5], [2, 'm1', 7], [3, 'm2', 6]]);
+  assert.deepEqual(v3[0].values, { m1: 3, m2: 8 });
+});
 ```
 
 ---
@@ -182,7 +221,7 @@ POST /api/tasks/:id/estimates   { memberId, hours, reason? }
 → 200 { taskId, estimate }          estimate 는 estimateSummary 결과
 
 GET  /api/estimates
-→ 200 { t1: { revealed: false, submittedIds: ["m1"] }, t2: { revealed: true, … } }   작업 id → 요약
+→ 200 { t1: { revealed: false, submittedIds: ["m1"] }, t2: { revealed: true, …, history: [ver 1, ver 2, …] } }   작업 id → 요약
 → 404 { error: '작업을 찾을 수 없습니다.' }
 → 400 { error: '…' }
 ```
@@ -194,10 +233,11 @@ GET  /api/estimates
 | `reason` 은 없어도 된다. 있으면 문자열, 공백 제거 후 100자 이하 | 400 `근거는 100자 이내로 적어 주세요.` |
 | 작업의 `hours` 가 이미 확정됨 | 400 `이미 크기가 확정된 작업입니다.` |
 
-- 공개 전에는 자기 값과 근거를 다시 내면 덮어씁니다.
+- 공개 전에는 자기 값과 근거를 다시 내면 조용히 덮어씁니다(기록 없음).
+- 공개 뒤에도 크기 확정 전까지는 다시 낼 수 있고, 낼 때마다 `addVersion` 으로 작업의 `estimateHistory` 에 버전이 쌓입니다. 값과 근거가 앞 버전과 같으면 쌓지 않습니다. 공개된 작업의 요약에는 `history` 로 함께 나갑니다.
 - 근거는 선택 입력입니다. 강제하면 "그냥"만 채워집니다. 대신 공개 화면에서 근거가 있는 추정이 눈에 띄게 합니다.
 - 저장은 B의 `store.load()` / `store.save()` 를 씁니다.
-- **추정값은 이 두 API로만 밖에 나갑니다.** 항상 `estimateSummary` 를 거친 요약만 내보내고 원본 `estimates` 는 담지 않습니다. C의 `GET /api/tasks` 는 `estimates` 필드를 아예 빼고 내보냅니다.
+- **추정값은 이 두 API로만 밖에 나갑니다.** 항상 `estimateSummary` 를 거친 요약만 내보내고 원본 `estimates` 는 담지 않습니다. C의 `GET /api/tasks` 는 `estimates` · `estimateHistory` 필드를 아예 빼고 내보냅니다.
 - 크기 확정은 새 API를 만들지 않고 C의 `PATCH /api/tasks/:id { hours }` 를 씁니다.
 
 > 로그인이 없으므로 "누가 냈는지"는 화면에서 고른 `memberId` 를 믿습니다. 과제 제한 사항(로그인 금지) 안에서 받아들이는 한계입니다.
@@ -278,7 +318,7 @@ C가 만든 작업 등록 폼 옆 `#breakdown` 자리를 채웁니다.
 
 ## A-7. 마무리 점검표
 
-- [ ] `npm test` 에서 A의 테스트 18개가 통과한다
+- [ ] `npm test` 에서 A의 테스트 24개가 통과한다
 - [ ] `.env` 의 `GEMINI_API_KEY` 를 비우고 서버를 켜도 작업 등록 · 추정 · 추천이 된다
 - [ ] 키를 일부러 틀리게 넣어도 `/api/breakdown` 이 200 + `fallback` 을 돌려준다
 - [ ] 와이파이를 끄고 눌러도 화면이 멈추지 않는다 (8초 안에 직접 입력으로 넘어감)
@@ -294,7 +334,7 @@ C가 만든 작업 등록 폼 옆 `#breakdown` 자리를 채웁니다.
 |---|---|---|
 | **중간발표 전** | 추정 요약 · AI 응답 검사 규칙과 테스트 → 추정 제출 · 조회 API → 추정 화면(제출 → 공개 → 확정) → LLM 호출과 `/api/breakdown`(실패 시 fallback) → 세분화 제안 목록에서 골라 등록 | A-1 ~ A-6 의 기본 흐름 |
 | **중간발표 이후** | 추정 근거 입력 · 공개, 의견 차이 표시, 확정된 작업 재제출 차단, LLM 실패 경로 점검(시간 초과 · 이상한 응답 · 이상한 입력), 프롬프트 다듬기, "작업 제목만 전송" 고지 | A-3 ~ A-7 의 나머지 |
-| **최종발표 전 완성** | 테스트 18개 통과, 마무리 점검표 전부 체크, API 키를 비운 서버에서의 시연 준비, 시연 리허설 | 마무리 점검표 |
+| **최종발표 전 완성** | 테스트 24개 통과, 마무리 점검표 전부 체크, API 키를 비운 서버에서의 시연 준비, 시연 리허설 | 마무리 점검표 |
 | 시간이 남으면 | 지난주 AI 요약 | 추가 구현 |
 
 **중간발표에서 보여줄 것:** 작업 하나에 세 명이 추정을 내고, 세 번째 제출에 동시 공개되어 크기를 확정하는 것. 그리고 "발표 준비"를 AI로 나눠 등록하는 것.

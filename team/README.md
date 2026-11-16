@@ -60,7 +60,7 @@ flowchart LR
 | **화면** | AI 세분화 제안(체크박스로 골라 등록), 블라인드 추정(시간 · 근거 제출 → 동시 공개 → 크기 확정) | `public/js/sizing.js` |
 | **계산 규칙** | AI 응답 검사, 추정 요약(공개 조건 · 중앙값 · 의견 차이 · 근거) | `src/lib/breakdown.js` · `estimate.js` |
 | **서버 API** | `POST /api/breakdown` (LLM 호출)<br/>`POST /api/tasks/:id/estimates`<br/>`GET /api/estimates` | `src/routes/breakdown.js` · `estimates.js`, `src/lib/llm.js` |
-| **테스트** | 18개 | `test/breakdown.test.js` · `estimate.test.js` |
+| **테스트** | 24개 | `test/breakdown.test.js` · `estimate.test.js` |
 | **시연** | "발표 준비"를 AI로 나눠 등록 → 세 명이 추정 제출 → 동시 공개 · 의견 차이 → 크기 확정. API 키를 비워도 동작하는 것 | |
 
 ### B 박지호 — 분배 기능
@@ -120,6 +120,8 @@ flowchart LR
   dueDate: '2026-12-01',    // 'YYYY-MM-DD' 또는 null
   hours: null,              // 팀이 확정한 작업 크기(시간). 확정 전에는 null
   estimates: { m1: { hours: 3, reason: '슬라이드 10장 기준' } },  // 서버 안에서만 보관. A만 읽고 쓴다
+  estimatesRevealed: false, // 추정이 한 번이라도 공개됐는지. A만 쓴다. 없으면 false 로 본다
+  estimateHistory: [],      // 공개 뒤 추정 버전 기록. A만 읽고 쓰고, GET /api/tasks 에서는 뺀다
   createdAt: '2026-11-10T09:00:00.000Z'
 }
 ```
@@ -135,7 +137,7 @@ flowchart LR
 | C | `GET /api/members` | — | `Member[]` |
 | C | `POST /api/members` | `{ name, availableHours }` | `Member` (201) |
 | C | `PATCH /api/members/:id` | `{ name?, availableHours? }` | `Member` |
-| C | `GET /api/tasks` | — | `Task[]` (`estimates` 필드 없이) |
+| C | `GET /api/tasks` | — | `Task[]` (`estimates` · `estimateHistory` 필드 없이) |
 | C | `POST /api/tasks` | `{ title, dueDate?, parentId? }` | `Task` (201) |
 | C | `PATCH /api/tasks/:id` | `{ status?, assigneeId?, hours?, dueDate?, title? }` | `Task` |
 | C | `GET /api/progress` | — | 아래 |
@@ -157,7 +159,14 @@ flowchart LR
 { revealed: false, submittedIds: ['m1'] }                       // 전원이 내기 전
 { revealed: true, submittedIds: ['m1','m2','m3'],               // 전원이 낸 뒤
   values: { m1: 3, m2: 4, m3: 8 }, median: 4, wideSpread: true,
-  reasons: { m1: '슬라이드 10장 기준', m3: '디자인까지 포함' } }
+  reasons: { m1: '슬라이드 10장 기준', m3: '디자인까지 포함' },
+  history: [                                                    // 공개된 뒤의 버전 기록 (오래된 것부터)
+    { version: 1, by: null, at: '…', values: { m1: 3, m2: 4, m3: 8 }, reasons: {…}, median: 4 },  // 처음 공개
+    { version: 2, by: 'm1', at: '…', values: { m1: 5, m2: 4, m3: 8 }, reasons: {…}, median: 5 }   // m1 이 고침
+  ] }
+// 한 번 공개된 작업은 팀원이 늘어도 revealed: true 를 유지한다.
+// 새 팀원이 아직 안 냈으면 submittedIds · values 에 없고, 내는 즉시 values · median 에 반영된다.
+// 공개 뒤 누가 다시 내면 앞 버전은 그대로 두고 다음 버전이 쌓인다. 공개 전의 재제출과 앞 버전과 같은 값은 기록하지 않는다.
 
 // B — GET /api/loads
 { members: [ { memberId: 'm1', name: '김권섭', load: 60, overloaded: false } ] }   // 가능한 시간이 0이면 load: null

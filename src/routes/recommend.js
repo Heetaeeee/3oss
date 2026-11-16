@@ -47,7 +47,7 @@ router.post('/', (req, res) => {
       });
     }
 
-    if (task.hours === null) {
+    if (task.hours == null) {
       return res.status(400).json({
         error: '작업 크기를 먼저 정해 주세요.'
       });
