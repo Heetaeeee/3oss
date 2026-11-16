@@ -73,3 +73,7 @@ test('공개 뒤 수정하면 앞 버전을 두고 수정한 사람의 버전을
   assert.deepEqual(v3.map((v) => [v.version, v.by, v.median]), [[1, null, 5.5], [2, 'm1', 7], [3, 'm2', 6]]);
   assert.deepEqual(v3[0].values, { m1: 3, m2: 8 });
 });
+test('공개 뒤 같은 값을 다시 내면 버전을 쌓지 않는다', () => {
+  const v1 = addVersion([], estimateSummary({ m1: e(3), m2: e(8) }, ['m1', 'm2']), null, 'T1');
+  assert.equal(addVersion(v1, estimateSummary({ m1: e(3), m2: e(8) }, ['m1', 'm2'], true), 'm2', 'T2'), v1);
+});
