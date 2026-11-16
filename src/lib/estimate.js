@@ -1,8 +1,10 @@
 // estimates: { 팀원 id: { hours, reason } }
 // 전원이 내기 전에는 values · reasons · median 을 담지 않는다
-export function estimateSummary(estimates, memberIds) {
+// wasRevealed: 이미 한 번 공개된 작업이면 새 팀원이 들어와도 공개를 유지한다
+export function estimateSummary(estimates, memberIds, wasRevealed = false) {
   const submittedIds = memberIds.filter((id) => estimates[id]);
-  const revealed = memberIds.length > 0 && submittedIds.length === memberIds.length;
+  const revealed = submittedIds.length > 0 &&
+    (wasRevealed || submittedIds.length === memberIds.length);
   if (!revealed) return { revealed, submittedIds };
 
   const values = {};

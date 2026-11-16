@@ -25,16 +25,19 @@ router.post('/tasks/:id/estimates', (req, res) => {
 
   // 공개 전에 같은 사람이 다시 내면 덮어쓴다
   task.estimates = { ...task.estimates, [memberId]: { hours, reason: reason?.trim() ?? '' } };
+  const estimate = estimateSummary(task.estimates, memberIds(db), task.estimatesRevealed);
+  // 한 번 공개되면 기록해 둔다 — 나중에 팀원이 늘어도 다시 가려지지 않게
+  task.estimatesRevealed = estimate.revealed;
   save(db);
 
-  res.json({ taskId: task.id, estimate: estimateSummary(task.estimates, memberIds(db)) });
+  res.json({ taskId: task.id, estimate });
 });
 
 // GET /api/estimates — 원본 estimates 대신 요약만 내보낸다
 router.get('/estimates', (req, res) => {
   const db = load();
   const ids = memberIds(db);
-  res.json(Object.fromEntries(db.tasks.map((t) => [t.id, estimateSummary(t.estimates ?? {}, ids)])));
+  res.json(Object.fromEntries(db.tasks.map((t) => [t.id, estimateSummary(t.estimates ?? {}, ids, t.estimatesRevealed)])));
 });
 
 function memberIds(db) {
