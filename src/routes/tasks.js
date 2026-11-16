@@ -5,7 +5,7 @@ import { validateNewTask, validateTaskPatch } from '../lib/validate.js';
 const router = Router();
 
 // 원본 추정값이 응답에 새면 블라인드 추정이 깨진다. 작업을 돌려줄 때는 항상 이걸 거친다.
-const publicTask = ({ estimates, ...task }) => task;
+const publicTask = ({ estimates, estimateHistory, ...task }) => task;
 
 router.get('/', (req, res) => {
   res.json(load().tasks.map(publicTask));
