@@ -173,7 +173,7 @@ async function drawProgress(slot, tasks) {
   const p = await api('/api/progress');
   const done = tasks.filter((t) => t.status === 'DONE').length;
   const shares = p.doneHoursTotal === 0
-    ? [el('p', { className: 'sub' }, '아직 완료된 작업이 없습니다.')]
+    ? [el('p', { className: 'sub' }, done === 0 ? '아직 완료된 작업이 없습니다.' : '완료한 작업의 확정 시간이 아직 없습니다.')]
     : p.members.map((m) => meter(m.name, `${m.doneShare}% · ${m.doneHours}시간 / ${p.doneHoursTotal}시간`, m.doneShare));
   fill(slot,
     meter('전체 진행률', `${p.progress}% · ${done}건 / ${tasks.length}건`, p.progress),
