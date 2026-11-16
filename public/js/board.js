@@ -152,8 +152,9 @@ function taskCard(task, members, tasks) {
     el('div', { className: 'between' }, el('h3', {}, task.title), status),
     parent ? el('p', { className: 'sub' }, `↳ ${parent.title}의 세부 작업`) : null,
     badges,
-    el('div', { className: 'row' }, field('담당자', assignee), field('크기(시간)', hours, 'field field--s')),
-    error);
+    el('div', { className: 'slot stack' },
+      el('div', { className: 'row' }, field('담당자', assignee), field('크기(시간)', hours, 'field field--s')),
+      error));
 }
 
 function drawTasks(slot, members, tasks) {
