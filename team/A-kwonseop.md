@@ -113,7 +113,8 @@ test('7개까지만 남긴다', () => {
 ```js
 // estimates: { 팀원 id: { hours, reason } }
 // 전원이 내기 전에는 values · reasons 를 담지 않는다
-export function estimateSummary(estimates, memberIds)
+// wasRevealed: 작업의 estimatesRevealed. 이미 한 번 공개된 작업이면 true
+export function estimateSummary(estimates, memberIds, wasRevealed = false)
 // → { revealed: false, submittedIds }
 // → { revealed: true, submittedIds, values, reasons, median, wideSpread }
 ```
@@ -121,6 +122,7 @@ export function estimateSummary(estimates, memberIds)
 | 규칙 | |
 |---|---|
 | 공개 조건 | 현재 팀원 **전원**이 제출했을 때만 `revealed: true`. 팀원이 0명이면 `false` |
+| 공개 유지 | 한 번 공개된 작업(`wasRevealed`)은 팀원이 늘어도 `revealed: true` 를 유지한다. 새 팀원의 추정은 내는 즉시 `values` · `median` · `wideSpread` 에 반영 |
 | 탈퇴한 팀원의 값 | `memberIds` 에 없는 id 의 추정은 무시 |
 | 중앙값 | 짝수 개면 가운데 두 값의 평균 |
 | 의견 차이 | 최댓값 ≥ 최솟값 × 2 이면 `wideSpread: true` |
@@ -170,6 +172,20 @@ test("공개되면 근거도 함께 나간다", () => {
 test("전원이 내기 전에는 근거도 공개하지 않는다", () => {
   const s = estimateSummary({ m1: e(3, "슬라이드 10장 기준") }, ["m1", "m2"]);
   assert.equal("reasons" in s, false);
+});
+test('한 번 공개된 뒤에는 새 팀원이 들어와도 공개를 유지한다', () => {
+  const s = estimateSummary({ m1: e(3), m2: e(4) }, ['m1', 'm2', 'm3'], true);
+  assert.equal(s.revealed, true);
+  assert.deepEqual(s.submittedIds, ['m1', 'm2']);
+  assert.deepEqual(s.values, { m1: 3, m2: 4 });
+  assert.equal(s.median, 3.5);
+});
+test('공개된 뒤 새 팀원이 내면 바로 반영한다', () => {
+  const s = estimateSummary({ m1: e(3), m2: e(4), m3: e(8, '디자인 포함') }, ['m1', 'm2', 'm3'], true);
+  assert.deepEqual(s.values, { m1: 3, m2: 4, m3: 8 });
+  assert.deepEqual(s.reasons, { m3: '디자인 포함' });
+  assert.equal(s.median, 4);
+  assert.equal(s.wideSpread, true);
 });
 ```
 

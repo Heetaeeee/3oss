@@ -120,6 +120,7 @@ flowchart LR
   dueDate: '2026-12-01',    // 'YYYY-MM-DD' 또는 null
   hours: null,              // 팀이 확정한 작업 크기(시간). 확정 전에는 null
   estimates: { m1: { hours: 3, reason: '슬라이드 10장 기준' } },  // 서버 안에서만 보관. A만 읽고 쓴다
+  estimatesRevealed: false, // 추정이 한 번이라도 공개됐는지. A만 쓴다. 없으면 false 로 본다
   createdAt: '2026-11-10T09:00:00.000Z'
 }
 ```
@@ -158,6 +159,8 @@ flowchart LR
 { revealed: true, submittedIds: ['m1','m2','m3'],               // 전원이 낸 뒤
   values: { m1: 3, m2: 4, m3: 8 }, median: 4, wideSpread: true,
   reasons: { m1: '슬라이드 10장 기준', m3: '디자인까지 포함' } }
+// 한 번 공개된 작업은 팀원이 늘어도 revealed: true 를 유지한다.
+// 새 팀원이 아직 안 냈으면 submittedIds · values 에 없고, 내는 즉시 values · median 에 반영된다.
 
 // B — GET /api/loads
 { members: [ { memberId: 'm1', name: '김권섭', load: 60, overloaded: false } ] }   // 가능한 시간이 0이면 load: null
