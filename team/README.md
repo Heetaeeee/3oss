@@ -60,7 +60,7 @@ flowchart LR
 | **화면** | AI 세분화 제안(체크박스로 골라 등록), 블라인드 추정(시간 · 근거 제출 → 동시 공개 → 크기 확정) | `public/js/sizing.js` |
 | **계산 규칙** | AI 응답 검사, 추정 요약(공개 조건 · 중앙값 · 의견 차이 · 근거) | `src/lib/breakdown.js` · `estimate.js` |
 | **서버 API** | `POST /api/breakdown` (LLM 호출)<br/>`POST /api/tasks/:id/estimates`<br/>`GET /api/estimates` | `src/routes/breakdown.js` · `estimates.js`, `src/lib/llm.js` |
-| **테스트** | 23개 | `test/breakdown.test.js` · `estimate.test.js` |
+| **테스트** | 24개 | `test/breakdown.test.js` · `estimate.test.js` |
 | **시연** | "발표 준비"를 AI로 나눠 등록 → 세 명이 추정 제출 → 동시 공개 · 의견 차이 → 크기 확정. API 키를 비워도 동작하는 것 | |
 
 ### B 박지호 — 분배 기능
@@ -166,7 +166,7 @@ flowchart LR
   ] }
 // 한 번 공개된 작업은 팀원이 늘어도 revealed: true 를 유지한다.
 // 새 팀원이 아직 안 냈으면 submittedIds · values 에 없고, 내는 즉시 values · median 에 반영된다.
-// 공개 뒤 누가 다시 내면 앞 버전은 그대로 두고 다음 버전이 쌓인다. 공개 전의 재제출은 기록하지 않는다.
+// 공개 뒤 누가 다시 내면 앞 버전은 그대로 두고 다음 버전이 쌓인다. 공개 전의 재제출과 앞 버전과 같은 값은 기록하지 않는다.
 
 // B — GET /api/loads
 { members: [ { memberId: 'm1', name: '김권섭', load: 60, overloaded: false } ] }   // 가능한 시간이 0이면 load: null

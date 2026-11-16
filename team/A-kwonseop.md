@@ -118,7 +118,7 @@ export function estimateSummary(estimates, memberIds, wasRevealed = false)
 // → { revealed: false, submittedIds }
 // → { revealed: true, submittedIds, values, reasons, median, wideSpread }
 
-// 공개된 뒤의 값을 버전으로 쌓는다. 공개 전(revealed: false)이면 history 를 그대로 돌려준다
+// 공개된 뒤의 값을 버전으로 쌓는다. 공개 전(revealed: false)이거나 앞 버전과 값 · 근거가 같으면 history 를 그대로 돌려준다
 // by: 이 버전을 만든 팀원 id. 처음 공개(전원 제출)면 null
 export function addVersion(history, summary, by, at)
 // → [...history, { version, by, at, values, reasons, median }]
@@ -234,7 +234,7 @@ GET  /api/estimates
 | 작업의 `hours` 가 이미 확정됨 | 400 `이미 크기가 확정된 작업입니다.` |
 
 - 공개 전에는 자기 값과 근거를 다시 내면 조용히 덮어씁니다(기록 없음).
-- 공개 뒤에도 크기 확정 전까지는 다시 낼 수 있고, 낼 때마다 `addVersion` 으로 작업의 `estimateHistory` 에 버전이 쌓입니다. 공개된 작업의 요약에는 `history` 로 함께 나갑니다.
+- 공개 뒤에도 크기 확정 전까지는 다시 낼 수 있고, 낼 때마다 `addVersion` 으로 작업의 `estimateHistory` 에 버전이 쌓입니다. 값과 근거가 앞 버전과 같으면 쌓지 않습니다. 공개된 작업의 요약에는 `history` 로 함께 나갑니다.
 - 근거는 선택 입력입니다. 강제하면 "그냥"만 채워집니다. 대신 공개 화면에서 근거가 있는 추정이 눈에 띄게 합니다.
 - 저장은 B의 `store.load()` / `store.save()` 를 씁니다.
 - **추정값은 이 두 API로만 밖에 나갑니다.** 항상 `estimateSummary` 를 거친 요약만 내보내고 원본 `estimates` 는 담지 않습니다. C의 `GET /api/tasks` 는 `estimates` · `estimateHistory` 필드를 아예 빼고 내보냅니다.
@@ -318,7 +318,7 @@ C가 만든 작업 등록 폼 옆 `#breakdown` 자리를 채웁니다.
 
 ## A-7. 마무리 점검표
 
-- [ ] `npm test` 에서 A의 테스트 23개가 통과한다
+- [ ] `npm test` 에서 A의 테스트 24개가 통과한다
 - [ ] `.env` 의 `GEMINI_API_KEY` 를 비우고 서버를 켜도 작업 등록 · 추정 · 추천이 된다
 - [ ] 키를 일부러 틀리게 넣어도 `/api/breakdown` 이 200 + `fallback` 을 돌려준다
 - [ ] 와이파이를 끄고 눌러도 화면이 멈추지 않는다 (8초 안에 직접 입력으로 넘어감)
@@ -334,7 +334,7 @@ C가 만든 작업 등록 폼 옆 `#breakdown` 자리를 채웁니다.
 |---|---|---|
 | **중간발표 전** | 추정 요약 · AI 응답 검사 규칙과 테스트 → 추정 제출 · 조회 API → 추정 화면(제출 → 공개 → 확정) → LLM 호출과 `/api/breakdown`(실패 시 fallback) → 세분화 제안 목록에서 골라 등록 | A-1 ~ A-6 의 기본 흐름 |
 | **중간발표 이후** | 추정 근거 입력 · 공개, 의견 차이 표시, 확정된 작업 재제출 차단, LLM 실패 경로 점검(시간 초과 · 이상한 응답 · 이상한 입력), 프롬프트 다듬기, "작업 제목만 전송" 고지 | A-3 ~ A-7 의 나머지 |
-| **최종발표 전 완성** | 테스트 23개 통과, 마무리 점검표 전부 체크, API 키를 비운 서버에서의 시연 준비, 시연 리허설 | 마무리 점검표 |
+| **최종발표 전 완성** | 테스트 24개 통과, 마무리 점검표 전부 체크, API 키를 비운 서버에서의 시연 준비, 시연 리허설 | 마무리 점검표 |
 | 시간이 남으면 | 지난주 AI 요약 | 추가 구현 |
 
 **중간발표에서 보여줄 것:** 작업 하나에 세 명이 추정을 내고, 세 번째 제출에 동시 공개되어 크기를 확정하는 것. 그리고 "발표 준비"를 AI로 나눠 등록하는 것.
