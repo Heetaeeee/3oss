@@ -30,6 +30,13 @@ router.post('/tasks/:id/estimates', (req, res) => {
   res.json({ taskId: task.id, estimate: estimateSummary(task.estimates, memberIds(db)) });
 });
 
+// GET /api/estimates — 원본 estimates 대신 요약만 내보낸다
+router.get('/estimates', (req, res) => {
+  const db = load();
+  const ids = memberIds(db);
+  res.json(Object.fromEntries(db.tasks.map((t) => [t.id, estimateSummary(t.estimates ?? {}, ids)])));
+});
+
 function memberIds(db) {
   return db.members.map((m) => m.id);
 }
