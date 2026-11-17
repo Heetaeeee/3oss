@@ -137,17 +137,48 @@ function drawRecommendations(tasks, members) {
   );
 
   if (pending.length === 0) {
-    recommendSlot.replaceChildren(
-      title,
-      el(
-        'p',
-        { className: 'sub' },
-        '담당자를 정할 작업이 없습니다. 작업 정의 화면에서 크기를 먼저 확정해 주세요.'
-      ),
-      el('a', { href: 'sizing.html' }, '작업 정의로 이동')
-    );
-    return;
+  const unfinished = tasks.filter(
+    (task) => task.status !== 'DONE'
+  );
+
+  const needsEstimate = unfinished.some(
+    (task) =>
+      task.assigneeId == null &&
+      task.hours == null
+  );
+
+  let message;
+  let linkText;
+  let href;
+
+  if (tasks.length === 0) {
+    message = '아직 작업이 없습니다. 작업을 먼저 등록해 주세요.';
+    linkText = '등록 · 진행으로 이동';
+    href = 'board.html';
+  } else if (unfinished.length === 0) {
+    message = '모든 작업이 완료됐습니다.';
+    linkText = '진행 현황 확인';
+    href = 'board.html';
+  } else if (needsEstimate) {
+    message =
+      '담당자가 정해지지 않은 작업의 크기가 미확정입니다. ' +
+      '작업 정의 화면에서 크기를 먼저 확정해 주세요.';
+    linkText = '작업 정의로 이동';
+    href = 'sizing.html';
+  } else {
+    message = '모든 미완료 작업에 담당자가 배정돼 있습니다.';
+    linkText = '배정 현황 확인';
+    href = 'board.html';
   }
+
+  recommendSlot.replaceChildren(
+    title,
+    el('p', { className: 'sub' }, message),
+    el('a', { href }, linkText)
+  );
+
+  return;
+}
 
   const cards = pending.map((task) => {
     const resultBox = el('div', { className: 'slot stack' });
