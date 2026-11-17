@@ -5,11 +5,14 @@ export function progressPercent(tasks) {
   return Math.round((tasks.filter((t) => t.status === 'DONE').length / tasks.length) * 100);
 }
 
-// 'YYYY-MM-DD' 두 개를 날짜 단위로 뺀다. 시간대가 끼어들지 않게 UTC 자정끼리 비교.
+const DAY = 86_400_000;
+// 'YYYY-MM-DD' → 그날 UTC 자정. 시간대가 끼어들지 않게 날짜 계산은 전부 이걸 거친다
+const utcDay = (s) => Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10));
+
+// 'YYYY-MM-DD' 두 개를 날짜 단위로 뺀다.
 export function daysLeft(dueDate, today) {
   if (dueDate === null) return null;
-  const utc = (s) => Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10));
-  return Math.round((utc(dueDate) - utc(today)) / 86_400_000);
+  return Math.round((utcDay(dueDate) - utcDay(today)) / DAY);
 }
 
 export function doneShare(memberId, tasks) {
@@ -18,9 +21,6 @@ export function doneShare(memberId, tasks) {
   const hours = done.filter((t) => t.assigneeId === memberId).reduce((sum, t) => sum + t.hours, 0);
   return { percent: totalHours === 0 ? 0 : Math.round((hours / totalHours) * 100), hours, totalHours };
 }
-
-const DAY = 86_400_000;
-const utcDay = (s) => Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10));
 
 // 'YYYY-MM-DD' 가 속한 주의 월요일
 function weekStartOf(s) {
