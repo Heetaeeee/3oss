@@ -171,15 +171,28 @@ function drawTasks(slot, members, tasks) {
   })));
 }
 
+async function drawWeekly(tasks) {
+  try {
+    const { weeks } = await api('/api/weekly');
+    if (weeks.length > 0) {
+      return weeks.map((w) => meter(`${+w.weekStart.slice(5, 7)}/${+w.weekStart.slice(8)} 주`, `${w.rate}% · ${w.done}건 / ${w.total}건`, w.rate));
+    }
+    // 서버는 이번 주까지만 센다. 마감일이 전부 다음 주 이후면 마감일은 있어도 목록이 비어 있다
+    return [el('p', { className: 'sub' }, tasks.some((t) => t.dueDate)
+      ? '이번 주까지 표시할 주차별 기록이 없습니다.'
+      : '아직 마감일이 있는 작업이 없습니다. 작업에 마감일을 넣으면 주별로 보입니다.')];
+  } catch (error) {
+    return [el('p', { className: 'msg-error', role: 'alert' }, `주차별 수행률을 불러오지 못했습니다. ${error.message}`)];
+  }
+}
+
 async function drawProgress(slot, tasks) {
-  const [p, { weeks }] = await Promise.all([api('/api/progress'), api('/api/weekly')]);
+  // 주차별 조회가 실패해도 진행률 · 완료 작업 비중은 보이게 따로 받는다
+  const [p, weekly] = await Promise.all([api('/api/progress'), drawWeekly(tasks)]);
   const done = tasks.filter((t) => t.status === 'DONE').length;
   const shares = p.doneHoursTotal === 0
     ? [el('p', { className: 'sub' }, done === 0 ? '아직 완료된 작업이 없습니다.' : '완료한 작업의 확정 시간이 아직 없습니다.')]
     : p.members.map((m) => meter(m.name, `${m.doneShare}% · ${m.doneHours}시간 / ${p.doneHoursTotal}시간`, m.doneShare));
-  const weekly = weeks.length === 0
-    ? [el('p', { className: 'sub' }, '아직 마감일이 있는 작업이 없습니다. 작업에 마감일을 넣으면 주별로 보입니다.')]
-    : weeks.map((w) => meter(`${+w.weekStart.slice(5, 7)}/${+w.weekStart.slice(8)} 주`, `${w.rate}% · ${w.done}건 / ${w.total}건`, w.rate));
   // A 의 지난주 요약 자리. 다시 그려도 A 가 채운 내용이 지워지지 않게 같은 노드를 다시 붙인다
   const summary = slot.querySelector('#weekly-summary') ?? el('div', { id: 'weekly-summary' });
   fill(slot,
