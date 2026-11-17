@@ -77,7 +77,12 @@ function drawLoads(data, members) {
 
     if (member.load === null) {
       meter.append(
-        el('p', { className: 'sub' }, '가능한 시간이 0시간입니다.')
+        el(
+        'p',
+        { className: 'sub' },
+        `맡은 미완료 작업 ${member.currentHours}시간 / ` +
+        `가능한 시간 ${member.availableHours}시간`
+        )
       );
     }
 
