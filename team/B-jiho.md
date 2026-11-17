@@ -102,6 +102,8 @@ export function recommend(members, tasks, newHours)
 | `loadPercent` | `Math.round(hours / availableHours * 100)`. `availableHours <= 0` 이면 `null` |
 | `recommend` | 가능한 시간이 0 이하인 팀원은 `excluded` 로. 나머지는 `projectedLoad` 오름차순 → `currentLoad` 오름차순 → 원래 등록 순서. 첫 번째가 `recommendedId`. 후보가 없으면 `null` |
 
+-추천 순위는 반올림 전 예상 부담률 → 반올림 전 현재 부담률 → 팀원 등록 순서로 정합니다. 화면과 API 응답의 부담률만 정수로 반올림합니다.
+
 **먼저 쓸 테스트 — 이게 스펙입니다.**
 
 ```js
@@ -245,9 +247,11 @@ POST /api/recommend   { hours }   → 아직 등록하지 않은 작업을 가�
 
 ```
 GET /api/loads
-→ { members: [{ memberId, name, load, overloaded }] }
+→ { members: [{ memberId, name, currentHours, availableHours, load, overloaded }] }
 ```
-
+- `currentHours`는 맡은 미완료 작업의 확정 시간 합계, `availableHours`는 팀원이 입력한 작업 가능 시간입니다.
+- 완료된 작업의 `taskId`로 추천을 요청하면 400으로 거절합니다.
+- 추천 API 테스트는 메모리 예시 데이터를 사용하며 실제 저장 파일을 변경하지 않습니다.
 - `load` 는 `loadPercent(currentHours(...), availableHours)`, `overloaded` 는 `load > 100`.
 
 ---
@@ -261,6 +265,7 @@ GET /api/loads
 | 팀원별 부담률 | 가로 막대. 너비는 `min(load, 100)%`, 숫자는 실제 값 (`120%`) |
 | 과부하 (`overloaded`) | 색을 바꾸고 **"과부하" 글자를 함께** 표시. 색만으로 구분하지 않습니다 |
 | `load: null` | 막대 없이 "가능한 시간 0 — 배정 불가" |
+| 계산 근거 | 서버가 반환한 `currentHours`와 `availableHours`를 "맡은 미완료 작업 6시간 / 가능한 시간 10시간" 형식으로 표시 |
 
 차트 라이브러리를 쓰지 않습니다. `<div>` 너비로 충분합니다. 이름은 `textContent` 로 넣습니다.
 
@@ -290,7 +295,7 @@ GET /api/loads
 
 ## 마무리 점검표
 
-- [ ] `npm test` 에서 B의 테스트 15개가 통과한다
+- [ ] `npm test` 에서 B의 테스트 23개가 통과한다
 - [ ] 서버를 껐다 켜도 팀원 · 작업이 남아 있다
 - [ ] 가능한 시간 0인 팀원이 추천 후보에 나오지 않는다
 - [ ] 작업을 `DONE` 으로 바꾸면 **새로고침 없이** 그 팀원의 막대가 줄어든다
@@ -307,7 +312,7 @@ GET /api/loads
 |---|---|---|
 | **중간발표 전** | **스캐폴드 · `store.js` (반나절 안에)** → 부담률 · 추천 · 근거 문장 규칙과 테스트 → `/api/loads` · `/api/recommend` → 부담률 막대 → 추천 · 배정 패널 | B-0 ~ B-5 의 기본 흐름 |
 | **중간발표 이후** | 과부하(100% 초과) 표시, 가능한 시간 0 · 동률 · 후보 없음 화면, 이미 배정된 작업 재추천 시 중복 계산 방지, 잘못된 본문에 400 · 404, 저장 안전(임시 파일 후 rename · 깨진 파일 감지), **무료 플랜 배포** | B-3 ~ B-6 의 나머지 |
-| **최종발표 전 완성** | 테스트 15개 통과, 마무리 점검표 전부 체크, 배포 주소 접속 확인, 시연용 데이터 넣는 순서 정리, 시연 리허설 | 마무리 점검표 |
+| **최종발표 전 완성** | 테스트 23개 통과, 마무리 점검표 전부 체크, 배포 주소 접속 확인, 시연용 데이터 넣는 순서 정리, 시연 리허설 | 마무리 점검표 |
 
 **중간발표에서 보여줄 것:** 크기가 정해진 작업에 [담당자 추천] → 근거 문장과 예상 부담률 → 배정 → 막대가 바뀌는 것.
 

@@ -72,7 +72,7 @@ flowchart LR
 | **화면** | 부담률 막대(과부하 표시), 담당자 추천 패널(근거 문장 · 예상 부담률 · 배정 버튼) | `public/js/load.js` |
 | **계산 규칙** | 작업 부담률, 담당자 추천(제외 · 동률 규칙), 추천 근거 문장 | `src/lib/load.js` · `explain.js` |
 | **서버 API** | `GET /api/loads`<br/>`POST /api/recommend` | `src/routes/loads.js` · `recommend.js` |
-| **테스트** | 15개 | `test/load.test.js` · `explain.test.js` |
+| **테스트** | 23개 | `test/load.test.js` · `explain.test.js` · `recommend-api.test.js` |
 | **시연** | 새 작업에 담당자 추천 → 근거 문장과 예상 부담률 → 배정 → 막대 변화. 가능한 시간 0인 팀원이 제외되는 것 | |
 
 ### 공용 뼈대 — 기능이 아니라 바닥
@@ -178,7 +178,21 @@ flowchart LR
 // 공개 뒤 누가 다시 내면 앞 버전은 그대로 두고 다음 버전이 쌓인다. 공개 전의 재제출과 앞 버전과 같은 값은 기록하지 않는다.
 
 // B — GET /api/loads
-{ members: [ { memberId: 'm1', name: '김권섭', load: 60, overloaded: false } ] }   // 가능한 시간이 0이면 load: null
+{
+  members: [
+    {
+      memberId: 'm1',
+      name: '김권섭',
+      currentHours: 6,
+      availableHours: 10,
+      load: 60,
+      overloaded: false
+    }
+  ]
+}
+// currentHours: 맡은 미완료 작업의 확정 시간 합계
+// availableHours: 팀원이 입력한 작업 가능 시간
+// 가능한 시간이 0이면 load: null
 
 // B — POST /api/recommend
 {
@@ -193,6 +207,9 @@ flowchart LR
 ```
 
 부담률 · 진행률 · 완료 작업 비중은 **반올림한 정수**로 내려보냅니다.
+담당자 추천 순위는 반올림 전 예상 부담률 → 반올림 전 현재 부담률 → 팀원 등록 순서로 정합니다. 응답에 표시하는 부담률은 정수로 반올림하므로 표시값이 같더라도 추천 순서는 다를 수 있습니다.
+
+`POST /api/recommend`에 완료된 작업의 `taskId`를 보내면 400과 `{ error: '완료된 작업은 담당자 추천 대상이 아닙니다.' }`를 반환합니다. 추천 요청은 작업이나 담당자를 변경하지 않습니다.
 
 ## 화면을 나눠 쓰는 법
 
