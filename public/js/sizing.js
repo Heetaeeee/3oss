@@ -81,9 +81,10 @@ function cardHead(task, tasks, members) {
 function estimateForm(task, members, { label, primary, preferIds }) {
   const remembered = rememberedMember();
   const pick = members.some((m) => m.id === remembered) ? remembered : preferIds[0] ?? members[0].id;
-  const memberSelect = el('select', {}, ...members.map((m) => el('option', { value: m.id, selected: m.id === pick }, m.name)));
-  const hours = el('input', { type: 'number', min: '0.5', step: 'any', required: true, inputMode: 'decimal' });
-  const reason = el('input', { maxLength: 100, placeholder: '왜 이 시간인가요? 예: 슬라이드 10장 기준' });
+  // name 은 다시 그릴 때 입력값을 되살리는 열쇠, default* 는 "사람이 고친 칸"을 가려내는 기준 (fill 참고)
+  const memberSelect = el('select', { name: `${task.id}:who` }, ...members.map((m) => el('option', { value: m.id, defaultSelected: m.id === pick }, m.name)));
+  const hours = el('input', { name: `${task.id}:hours`, type: 'number', min: '0.5', step: 'any', required: true, inputMode: 'decimal' });
+  const reason = el('input', { name: `${task.id}:reason`, maxLength: 100, placeholder: '왜 이 시간인가요? 예: 슬라이드 10장 기준' });
   const button = el('button', { className: primary ? 'btn btn--primary' : 'btn', type: 'submit' }, label);
   const error = el('p', { className: 'msg-error', role: 'alert' });
 
@@ -130,22 +131,34 @@ const fmtTime = (iso) => {
   return `${t.getMonth() + 1}/${t.getDate()} ${pad(t.getHours())}:${pad(t.getMinutes())}`;
 };
 
-function historyList(members, history) {
-  if (!history || history.length < 2) return null;
-  const rows = history.map((v, i) => {
+function historyRows(members, history) {
+  return history.map((v, i) => {
     if (i === 0 || !v.by) return el('li', {}, `ver ${v.version} 처음 공개 · 중앙값 ${v.median}시간 · ${fmtTime(v.at)}`);
     const before = history[i - 1].values[v.by];
     const after = v.values[v.by];
     const change = before === after ? `${after}시간 (근거 수정)` : `${before ?? '–'} → ${after}시간`;
     return el('li', {}, `ver ${v.version} ${nameOf(members, v.by)} ${change} · 중앙값 ${v.median}시간 · ${fmtTime(v.at)}`);
   });
+}
+
+function historyList(members, history) {
+  if (!history || history.length < 2) return null;
   return el('details', {},
     el('summary', {}, `수정 기록 ${history.length}`),
-    el('ol', { className: 'stack sub' }, ...rows));
+    el('ol', { className: 'stack sub' }, ...historyRows(members, history)));
+}
+
+// 팀원별 값 · 근거 (칩 + 이름 · 시간 · 근거)
+function estList(members, summary) {
+  return el('div', { className: 'est' }, ...summary.submittedIds.flatMap((id) => [
+    who(members, id),
+    el('strong', {}, `${summary.values[id]}시간`),
+    el('span', { className: 'sub' }, summary.reasons[id] ?? '근거 없음'),
+  ]));
 }
 
 function confirmForm(task, median) {
-  const hours = el('input', { type: 'number', min: '0.5', step: 'any', required: true, value: String(median), inputMode: 'decimal' });
+  const hours = el('input', { name: `${task.id}:confirm`, type: 'number', min: '0.5', step: 'any', required: true, defaultValue: String(median), inputMode: 'decimal' });
   const button = el('button', { className: 'btn btn--primary', type: 'submit' }, '크기 확정');
   const error = el('p', { className: 'msg-error', role: 'alert' });
   const form = el('form', { className: 'stack', noValidate: true },
@@ -169,11 +182,7 @@ function revealedSlot(task, members, summary) {
   return el('div', { className: 'slot stack' },
     el('div', { className: 'between' }, el('h3', {}, '크기 추정'),
       summary.wideSpread ? el('span', { className: 'badge badge--over' }, '의견 차이 큼') : null),
-    el('div', { className: 'est' }, ...summary.submittedIds.flatMap((id) => [
-      who(members, id),
-      el('strong', {}, `${summary.values[id]}시간`),
-      el('span', { className: 'sub' }, summary.reasons[id] ?? '근거 없음'),
-    ])),
+    estList(members, summary),
     notYet.length ? el('p', { className: 'sub' }, `${notYet.map((id) => nameOf(members, id)).join(', ')} 님은 아직 내지 않았습니다.`) : null,
     historyList(members, summary.history),
     // 이미 낸 사람은 고치고(버전이 쌓인다), 공개 뒤 들어온 사람은 여기서 처음 낸다
@@ -182,17 +191,41 @@ function revealedSlot(task, members, summary) {
     confirmForm(task, summary.median));
 }
 
+// ---------- ③ 확정 뒤: 배지 + 접어 둔 추정 기록 ----------
+
+function recordDetails(members, summary) {
+  // 보드에서 크기를 바로 정한 작업처럼 추정이 공개된 적 없으면 보여 줄 기록이 없다
+  if (!summary?.revealed) return null;
+  const history = summary.history ?? [];
+  return el('details', { className: 'slot' },
+    el('summary', {}, '추정 기록 보기'),
+    el('div', { className: 'stack' },
+      estList(members, summary),
+      el('p', { className: 'sub' }, `마지막 중앙값 ${summary.median}시간${summary.wideSpread ? ' · 의견 차이 큼' : ''}`),
+      history.length >= 2 ? el('ol', { className: 'stack sub' }, ...historyRows(members, history)) : null));
+}
+
 // ---------- 전체 ----------
 
 function card(task, tasks, members, summary) {
   return el('article', { className: 'card stack' },
     ...cardHead(task, tasks, members),
-    // ③ 크기가 확정되면 배지만 남긴다
-    task.hours != null ? null : summary?.revealed ? revealedSlot(task, members, summary) : hiddenSlot(task, members, summary ?? { submittedIds: [] }));
+    task.hours != null ? recordDetails(members, summary)
+      : summary?.revealed ? revealedSlot(task, members, summary) : hiddenSlot(task, members, summary ?? { submittedIds: [] }));
 }
 
+// 사람이 고친 칸 = 처음 채워 둔 값(defaultValue · defaultSelected)과 달라진 칸
+const isEdited = (f) => (f.tagName === 'SELECT' ? !f.selectedOptions[0]?.defaultSelected : f.value !== f.defaultValue);
+
+// 다시 그려도 다른 카드에 입력하던 값은 남긴다. 제출한 카드의 칸은 제출 직후 비웠으므로 되살아나지 않는다
 function fill(...nodes) {
+  const edited = [...slot.querySelectorAll('[name]')].filter(isEdited).map((f) => [f.name, f.value]);
   slot.replaceChildren(slot.querySelector('h2'), ...nodes);
+  for (const [name, value] of edited) {
+    const f = slot.querySelector(`[name="${CSS.escape(name)}"]`);
+    // 고르던 팀원이 목록에서 사라졌으면 되살리지 않는다
+    if (f && (f.tagName !== 'SELECT' || [...f.options].some((o) => o.value === value))) f.value = value;
+  }
 }
 
 if (slot) {
@@ -215,7 +248,7 @@ if (slot) {
     }
     // 크기 미정 작업이 위(등록 순서), 확정된 작업이 아래
     const ordered = [...tasks.filter((t) => t.hours == null), ...tasks.filter((t) => t.hours != null)];
-    // shortcut: 데이터가 바뀌면 카드를 통째로 다시 그려 다른 카드에 입력하던 값도 지워진다. 한 화면을 여러 명이 동시에 쓰게 되면 카드별로 갱신
+    // shortcut: 카드를 통째로 다시 그리고 입력값만 되살린다 — 커서 위치 · 펼친 수정 기록은 닫힌다. 불편하면 바뀐 카드만 갱신
     fill(...ordered.map((t) => card(t, tasks, members, summaries[t.id])));
   });
 }
