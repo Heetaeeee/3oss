@@ -246,8 +246,11 @@ if (slot) {
       fill(el('p', { className: 'msg-error', role: 'alert' }, `추정 현황을 불러오지 못했습니다. ${error.message}`));
       return;
     }
+    // 상위 작업(다른 작업이 parentId 로 가리키는 작업)은 세부 작업에서 추정하므로 목록에서 뺀다 — team/README "상위 작업은 세지 않습니다"
+    const parentIds = new Set(tasks.map((t) => t.parentId).filter(Boolean));
+    const own = tasks.filter((t) => !parentIds.has(t.id));
     // 크기 미정 작업이 위(등록 순서), 확정된 작업이 아래
-    const ordered = [...tasks.filter((t) => t.hours == null), ...tasks.filter((t) => t.hours != null)];
+    const ordered = [...own.filter((t) => t.hours == null), ...own.filter((t) => t.hours != null)];
     // shortcut: 카드를 통째로 다시 그리고 입력값만 되살린다 — 커서 위치 · 펼친 수정 기록은 닫힌다. 불편하면 바뀐 카드만 갱신
     fill(...ordered.map((t) => card(t, tasks, members, summaries[t.id])));
   });
