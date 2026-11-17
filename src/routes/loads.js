@@ -15,6 +15,8 @@ router.get('/', (req, res) => {
     return {
       memberId: member.id,
       name: member.name,
+      currentHours: hours,
+      availableHours: member.availableHours,
       load: percent,
       overloaded: percent !== null && percent > 100
     };
