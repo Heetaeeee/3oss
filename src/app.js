@@ -7,6 +7,7 @@ import loadsRouter from './routes/loads.js';
 import progressRouter from './routes/progress.js';
 import estimatesRouter from './routes/estimates.js';
 import breakdownRouter from './routes/breakdown.js';
+import weeklyRouter from './routes/weekly.js';
 
 const app = express();
 
@@ -20,6 +21,7 @@ app.use('/api/recommend', recommendRouter);
 app.use('/api/loads', loadsRouter);
 app.use('/api', estimatesRouter);
 app.use('/api/breakdown', breakdownRouter);
+app.use('/api/weekly', weeklyRouter);
 
 app.use((req, res) => {
   res.status(404).json({
