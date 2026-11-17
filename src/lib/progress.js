@@ -1,5 +1,11 @@
 // 진행률 · D-day · 완료 작업 비중. 전부 순수 함수이고 오늘 날짜도 인자로 받는다.
 
+// 상태가 바뀔 때의 완료 시각. 완료로 바뀌면 now, 완료에서 벗어나면 null, 그대로면 이전 값
+export function nextCompletedAt(prevStatus, nextStatus, prevCompletedAt, now) {
+  if (nextStatus === undefined || nextStatus === prevStatus) return prevCompletedAt ?? null;
+  return nextStatus === 'DONE' ? now : null;
+}
+
 export function progressPercent(tasks) {
   if (tasks.length === 0) return 0;
   return Math.round((tasks.filter((t) => t.status === 'DONE').length / tasks.length) * 100);
