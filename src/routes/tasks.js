@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { load, save, newId } from '../lib/store.js';
 import { validateNewTask, validateTaskPatch } from '../lib/validate.js';
+import { nextCompletedAt } from '../lib/progress.js';
 
 const router = Router();
 
@@ -17,7 +18,7 @@ router.post('/', (req, res) => {
   if (!v.ok) return res.status(400).json({ error: v.error });
   const task = {
     id: newId(), parentId: null, status: 'TODO', assigneeId: null, dueDate: null, hours: null,
-    ...v.value, estimates: {}, createdAt: new Date().toISOString(),
+    ...v.value, estimates: {}, createdAt: new Date().toISOString(), completedAt: null,
   };
   db.tasks.push(task);
   save(db);
@@ -30,6 +31,8 @@ router.patch('/:id', (req, res) => {
   if (!task) return res.status(404).json({ error: '작업을 찾을 수 없습니다.' });
   const v = validateTaskPatch(req.body, { memberIds: db.members.map((m) => m.id) });
   if (!v.ok) return res.status(400).json({ error: v.error });
+  // 주차별 수행률 · 지난주 요약용
+  task.completedAt = nextCompletedAt(task.status, v.value.status, task.completedAt, new Date().toISOString());
   Object.assign(task, v.value);
   save(db);
   res.json(publicTask(task));
