@@ -53,7 +53,7 @@
 ```html
 <!-- 네 페이지 공통 머리말. 바꿀 때는 네 파일을 함께 고친다 -->
 <header class="stack">
-  <h1>3oss</h1>
+  <h1>할래말래</h1>
   <nav class="nav" aria-label="화면">
     <a href="./">홈</a>
     <a href="board.html" aria-current="page">등록 · 진행</a>   <!-- 지금 화면에만 aria-current -->
