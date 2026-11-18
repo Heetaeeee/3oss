@@ -59,6 +59,7 @@ export function parseSubtasks(raw, parentTitle)
 | JSON이 아니거나 배열이 아니다 | `[]` |
 | 문자열이 아닌 원소 | 버린다 |
 | 앞뒤 공백, 앞의 번호 · 글머리표 (`1.` `-` `•`) | 떼어낸다 |
+| 제목에 섞인 시간 표기 (`(3시간)` · `2h` · `30분`) | 떼어낸다. 크기는 팀이 추정하므로 AI 의 숫자를 남기지 않는다. `10장` · `2주차` 같은 다른 숫자는 그대로 |
 | 빈 문자열, 40자 초과 | 버린다 |
 | 상위 작업 제목과 같은 것, 서로 중복 | 한 번만 남기고 버린다 |
 | 7개 초과 | 앞에서 7개만 |
@@ -101,6 +102,10 @@ test('중복과 상위 작업 제목은 버린다', () => {
 test('7개까지만 남긴다', () => {
   const raw = JSON.stringify(Array.from({ length: 10 }, (_, i) => `작업 ${i}`));
   assert.equal(parseSubtasks(raw, '보고서').length, 7);
+});
+test('제목에 섞인 시간 표기는 떼어낸다 — 숫자는 AI 를 거치지 않는다', () => {
+  assert.deepEqual(parseSubtasks('["대본 작성 (3시간)","자료 조사 2h","발표 연습 30분","2차 리허설"]', '발표 준비'),
+    ['대본 작성', '자료 조사', '발표 연습', '2차 리허설']);
 });
 ```
 
@@ -257,7 +262,7 @@ GET  /api/estimates
 |---|---|
 | `revealed: false` | `1 / 3 제출` 배지 + **제출한 사람 이름만** (`김권섭 님이 제출했습니다. 값은 전원이 낸 뒤 함께 공개됩니다.`) + 입력 줄: `누구의 추정인가요` `<select>` · `예상 시간` · `근거 (선택)` · `추정 제출` |
 | `revealed: true`, `hours` 미확정 | 위에서부터 ① 팀원별 추정값과 **근거** (`.est` — 칩 + 이름 · 시간 · 근거, 근거가 없으면 `근거 없음`), `wideSpread` 면 `의견 차이 큼` 빨강 배지 ② 아직 안 낸 팀원이 있으면 `○○ 님은 아직 내지 않았습니다.` ③ **수정 기록** ④ **추정 고치기** 입력 줄 ⑤ 확정 칸 (`median` 을 미리 채움) + `크기 확정` → C의 `PATCH /api/tasks/:id { hours }` |
-| `hours` 확정됨 | `4시간 확정` 초록 배지 + 접어 둔 `추정 기록 보기`(최종 값 · 근거 · 마지막 중앙값 · 수정 기록). 입력칸은 그리지 않는다. 추정 없이 보드에서 크기를 정한 작업은 기록이 없으므로 배지만 |
+| `hours` 확정됨 | `4시간 확정` 초록 배지 + 접어 둔 `추정 기록 보기`(최종 값 · 근거 · 마지막 중앙값 · 수정 기록). 입력칸은 그리지 않는다. 추정이 공개된 적 없이 크기가 정해진 작업(보드 임시 크기칸이 있던 때의 데이터 등)은 기록이 없으므로 배지만 |
 
 - **확정 칸과 `크기 확정` 버튼은 `revealed: true` 일 때만 그립니다.** C의 `PATCH` 는 공개 전에도 `hours` 를 받으므로, 블라인드 추정을 건너뛰지 못하게 막는 곳은 이 화면입니다.
 - **추정 고치기:** 공개 뒤에도 확정 전까지는 입력 줄 하나를 둡니다. 이미 낸 사람은 여기서 고치고(A-3 대로 버전이 쌓임), 공개 뒤 들어온 새 팀원은 여기서 처음 냅니다(공개 유지 규칙). 안 낸 팀원이 있으면 버튼 글자는 `추정 제출`, 없으면 `추정 고치기` 이고 둘 다 같은 `POST /api/tasks/:id/estimates` 입니다.
@@ -278,14 +283,19 @@ GET  /api/estimates
 
 ```js
 // 프롬프트를 보내고 응답 문자열을 돌려준다. 어떤 이유로든 실패하면 null. 절대 throw 하지 않는다.
-export async function askLlm(prompt)
+// generationConfig: 응답 형식을 정할 때만 (세분화는 JSON 문자열 배열)
+export async function askLlm(prompt, generationConfig)
 ```
 
-- Node 20의 내장 `fetch` 를 씁니다. SDK 패키지를 추가하지 않습니다.
+- Node 내장 `fetch` 를 씁니다. SDK 패키지를 추가하지 않습니다.
 - `GEMINI_API_KEY` 가 없으면 호출하지 않고 바로 `null`.
-- `AbortSignal.timeout(8000)` 으로 8초 제한. 시간 초과 · 네트워크 오류 · 200이 아닌 응답 전부 `null`.
-- 엔드포인트와 요청 형식은 [Gemini API 문서](https://ai.google.dev/gemini-api/docs)에서 **지금 기준으로 확인**하고 씁니다. 무료 등급에서 쓸 수 있는 모델을 `GEMINI_MODEL` 로 고릅니다 (유료 API가 있어야만 동작하면 안 됩니다).
-- 실패 원인은 `console.warn` 으로 남기되 **API 키를 로그에 찍지 않습니다.**
+- `AbortSignal.timeout(8000)` 으로 8초 제한. 시간 초과 · 네트워크 오류 · 200이 아닌 응답 · 글자 없는 응답(차단 등) 전부 `null`.
+- 요청 형식 (2026-11 [Gemini API 문서](https://ai.google.dev/gemini-api/docs) 기준): `POST https://generativelanguage.googleapis.com/v1beta/models/{모델}:generateContent`, 본문 `{ contents: [{ parts: [{ text }] }], generationConfig }`, 응답 글자는 `candidates[0].content.parts[].text`.
+- **키는 `x-goog-api-key` 헤더로만** 보냅니다. 주소(`?key=`)에 넣으면 로그 · 오류 메시지에 남을 수 있습니다.
+- 모델은 `GEMINI_MODEL`, 비어 있으면 안정판 경량 모델 `gemini-3.5-flash-lite`. (`gemini-2.5-flash` 는 지원 종료 예정이라 쓰지 않습니다.) 유료 API가 있어야만 동작하면 안 됩니다.
+- 세분화 요청은 `generationConfig` 로 `responseMimeType: 'application/json'` + `responseJsonSchema: { type: 'array', items: { type: 'string' } }` 를 붙여 문자열 배열을 받습니다. 그래도 `parseSubtasks` 가 마지막으로 거릅니다.
+- 실패 원인은 `console.warn` 으로 남기되(HTTP 상태 · 오류 이름만) **API 키와 응답 본문을 로그에 찍지 않습니다.**
+- 테스트(`test/llm.test.js`)는 `fetch` 를 바꿔 끼워 네트워크 없이 실패 경로를 확인합니다 — 키 없음 · 정상 · 키는 헤더로만 · 200 아님 · 시간 초과 · 글자 없음.
 
 **프롬프트 초안**
 
@@ -334,7 +344,7 @@ POST /api/breakdown   { title }
 
 ## A-7. 마무리 점검표
 
-- [ ] `npm test` 에서 A의 테스트 24개가 통과한다
+- [ ] `npm test` 에서 A의 테스트 31개가 통과한다
 - [ ] `.env` 의 `GEMINI_API_KEY` 를 비우고 서버를 켜도 작업 등록 · 추정 · 추천이 된다
 - [ ] 키를 일부러 틀리게 넣어도 `/api/breakdown` 이 200 + `fallback` 을 돌려준다
 - [ ] 와이파이를 끄고 눌러도 화면이 멈추지 않는다 (8초 안에 직접 입력으로 넘어감)
@@ -350,7 +360,7 @@ POST /api/breakdown   { title }
 |---|---|---|
 | **중간발표 전** | 추정 요약 · AI 응답 검사 규칙과 테스트 → 추정 제출 · 조회 API → 추정 화면(제출 → 공개 → 확정) → LLM 호출과 `/api/breakdown`(실패 시 fallback) → 세분화 제안 목록에서 골라 등록 | A-1 ~ A-6 의 기본 흐름 |
 | **중간발표 이후** | 추정 근거 입력 · 공개, 의견 차이 표시, 확정된 작업 재제출 차단, LLM 실패 경로 점검(시간 초과 · 이상한 응답 · 이상한 입력), 프롬프트 다듬기, "작업 제목만 전송" 고지 | A-3 ~ A-7 의 나머지 |
-| **최종발표 전 완성** | 테스트 24개 통과, 마무리 점검표 전부 체크, API 키를 비운 서버에서의 시연 준비, 시연 리허설 | 마무리 점검표 |
+| **최종발표 전 완성** | 테스트 31개 통과, 마무리 점검표 전부 체크, API 키를 비운 서버에서의 시연 준비, 시연 리허설 | 마무리 점검표 |
 | 시간이 남으면 | 지난주 AI 요약 | 추가 구현 |
 
 **중간발표에서 보여줄 것:** 작업 하나에 세 명이 추정을 내고, 세 번째 제출에 동시 공개되어 크기를 확정하는 것. 그리고 "발표 준비"를 AI로 나눠 등록하는 것.
