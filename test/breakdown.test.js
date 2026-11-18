@@ -34,3 +34,7 @@ test('7개까지만 남긴다', () => {
   const raw = JSON.stringify(Array.from({ length: 10 }, (_, i) => `작업 ${i}`));
   assert.equal(parseSubtasks(raw, '보고서').length, 7);
 });
+test('제목에 섞인 시간 표기는 떼어낸다 — 숫자는 AI 를 거치지 않는다', () => {
+  assert.deepEqual(parseSubtasks('["대본 작성 (3시간)","자료 조사 2h","발표 연습 30분","2차 리허설"]', '발표 준비'),
+    ['대본 작성', '자료 조사', '발표 연습', '2차 리허설']);
+});
