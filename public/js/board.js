@@ -133,10 +133,6 @@ function taskCard(task, members, tasks) {
     ...members.map((m) => el('option', { value: m.id, selected: task.assigneeId === m.id }, m.name)));
   assignee.addEventListener('change', () => patch(assignee, { assigneeId: assignee.value || null }));
 
-  // A 의 추정 화면이 붙기 전에도 크기를 넣을 수 있게
-  const hours = el('input', { type: 'number', min: 0.5, step: 0.5, value: task.hours ?? '' });
-  hours.addEventListener('change', () => patch(hours, { hours: Number.isNaN(hours.valueAsNumber) ? null : hours.valueAsNumber }));
-
   const d = daysLeft(task.dueDate);
   const owner = members.find((m) => m.id === task.assigneeId);
   const parent = tasks.find((t) => t.id === task.parentId);
@@ -144,6 +140,7 @@ function taskCard(task, members, tasks) {
     d === null || task.status === 'DONE' ? null
       : d < 0 ? el('span', { className: 'badge badge--over' }, `지남 ${-d}일`)
       : el('span', { className: 'badge' }, d === 0 ? 'D-day' : `D-${d}`),
+    // 크기는 작업 정의 화면의 블라인드 추정으로만 정한다. 여기서 넣으면 전원 제출 전에 확정돼 버림
     task.hours === null ? el('span', { className: 'badge badge--todo' }, '크기 미정')
       : el('span', { className: 'badge badge--team' }, `${task.hours}시간 확정`),
     owner ? el('span', { className: 'badge badge--team' }, `담당 ${owner.name}`)
@@ -154,7 +151,7 @@ function taskCard(task, members, tasks) {
     parent ? el('p', { className: 'sub' }, `↳ ${parent.title}의 세부 작업`) : null,
     badges,
     el('div', { className: 'slot stack' },
-      el('div', { className: 'row' }, field('담당자', assignee), field('크기(시간)', hours, 'field field--s')),
+      el('div', { className: 'row' }, field('담당자', assignee)),
       error));
 }
 
