@@ -43,3 +43,34 @@ test('크기가 정해지지 않은 완료 작업은 세지 않는다', () => {
   const tasks = [t({ assigneeId: 'm1', hours: null, status: 'DONE' })];
   assert.deepEqual(doneShare("m1", tasks), { percent: 0, hours: 0, totalHours: 0 });
 });
+
+import { weeklyRates } from '../src/lib/progress.js';
+
+// 2026-11-09 는 월요일
+test('주는 월요일에 시작한다', () => {
+  const r = weeklyRates([t({ dueDate: '2026-11-15' }), t({ dueDate: '2026-11-16' })], '2026-11-20');
+  assert.deepEqual(r.map((w) => w.weekStart), ['2026-11-09', '2026-11-16']);
+});
+test('수행률은 그 주에 마감인 작업 중 완료한 비율', () => {
+  const tasks = [
+    t({ dueDate: '2026-11-10', status: 'DONE' }),
+    t({ dueDate: '2026-11-12', status: 'DONE' }),
+    t({ dueDate: '2026-11-13' }),
+  ];
+  assert.deepEqual(weeklyRates(tasks, '2026-11-20'),
+    [{ weekStart: '2026-11-09', rate: 67, done: 2, total: 3 }]);
+});
+test('마감일이 없는 작업은 넣지 않는다', () => {
+  assert.deepEqual(weeklyRates([t({ status: 'DONE' })], '2026-11-20'), []);
+});
+test('작업이 없으면 빈 배열', () => {
+  assert.deepEqual(weeklyRates([], '2026-11-20'), []);
+});
+test('해가 바뀌는 주도 한 주로 묶는다', () => {
+  const r = weeklyRates([t({ dueDate: '2026-12-31' }), t({ dueDate: '2027-01-02' })], '2027-01-05');
+  assert.equal(r.length, 1);
+  assert.equal(r[0].weekStart, '2026-12-28');
+});
+test('오늘이 속한 주보다 뒤의 주는 넣지 않는다', () => {
+  assert.deepEqual(weeklyRates([t({ dueDate: '2026-11-30' })], '2026-11-20'), []);
+});
