@@ -189,14 +189,17 @@ async function drawWeekly(tasks) {
 async function drawProgress(slot, tasks) {
   // 주차별 조회가 실패해도 진행률 · 완료 작업 비중은 보이게 따로 받는다
   const [p, weekly] = await Promise.all([api('/api/progress'), drawWeekly(tasks)]);
-  const done = tasks.filter((t) => t.status === 'DONE').length;
+  // 서버 progress.js 와 같은 기준: 다른 작업이 parentId 로 가리키는 상위 작업은 세지 않는다
+  const parentIds = new Set(tasks.map((t) => t.parentId).filter(Boolean));
+  const counted = tasks.filter((t) => !parentIds.has(t.id));
+  const done = counted.filter((t) => t.status === 'DONE').length;
   const shares = p.doneHoursTotal === 0
     ? [el('p', { className: 'sub' }, done === 0 ? '아직 완료된 작업이 없습니다.' : '완료한 작업의 확정 시간이 아직 없습니다.')]
     : p.members.map((m) => meter(m.name, `${m.doneShare}% · ${m.doneHours}시간 / ${p.doneHoursTotal}시간`, m.doneShare));
   // A 의 지난주 요약 자리. 다시 그려도 A 가 채운 내용이 지워지지 않게 같은 노드를 다시 붙인다
   const summary = slot.querySelector('#weekly-summary') ?? el('div', { id: 'weekly-summary' });
   fill(slot,
-    meter('전체 진행률', `${p.progress}% · ${done}건 / ${tasks.length}건`, p.progress),
+    meter('전체 진행률', `${p.progress}% · ${done}건 / ${counted.length}건`, p.progress),
     el('h3', { className: 'slot' }, '완료 작업 비중'),
     ...shares,
     el('p', { className: 'sub' }, '완료한 작업의 확정 예상 시간 기준입니다. 실제 걸린 시간과 다를 수 있습니다.'),
