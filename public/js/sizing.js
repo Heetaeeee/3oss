@@ -1,4 +1,4 @@
-// A 김권섭 — #sizing (sizing.html). #breakdown 은 A-6 에서 채운다.
+// A 김권섭 — #breakdown (큰 작업 나누기) · #sizing (크기 추정), sizing.html
 // 서버에서 온 글자는 전부 textContent 로만 넣는다. 추정값은 GET /api/estimates 의 요약만 쓴다.
 import { api, refresh } from './api.js';
 
@@ -253,5 +253,97 @@ if (slot) {
     const ordered = [...own.filter((t) => t.hours == null), ...own.filter((t) => t.hours != null)];
     // shortcut: 카드를 통째로 다시 그리고 입력값만 되살린다 — 커서 위치 · 펼친 수정 기록은 닫힌다. 불편하면 바뀐 카드만 갱신
     fill(...ordered.map((t) => card(t, tasks, members, summaries[t.id])));
+  });
+}
+
+// ---------- #breakdown: 큰 작업 나누기 (AI 제안 → 골라서 등록) ----------
+// 처음 한 번만 그린다 — 'data' 로 다시 그리면 입력하던 제목 · 고른 목록이 지워진다
+
+const breakdown = document.querySelector('#breakdown');
+if (breakdown) {
+  const badgeBox = el('span');
+  const title = el('input', { maxLength: 100, placeholder: '예: 발표 준비' });
+  const splitButton = el('button', { className: 'btn btn--primary', type: 'submit' }, 'AI로 나누기');
+  const splitError = el('p', { className: 'msg-error', role: 'alert' });
+  const splitForm = el('form', { className: 'stack', noValidate: true },
+    el('div', { className: 'row' }, field('나눌 작업 제목', title), splitButton),
+    splitError);
+
+  const notice = el('p', { className: 'sub' });
+  const list = el('div', { className: 'stack' });
+  const addRow = el('button', { className: 'btn btn--quiet', type: 'button' }, '칸 추가');
+  const registerButton = el('button', { className: 'btn btn--primary', type: 'button', disabled: true }, '고른 0개 등록');
+  const registerError = el('p', { className: 'msg-error', role: 'alert' });
+  const picks = el('div', { className: 'stack', hidden: true },
+    notice, list, el('div', { className: 'between' }, addRow, registerButton), registerError);
+
+  breakdown.replaceChildren(
+    el('div', { className: 'between' }, breakdown.querySelector('h2'), badgeBox),
+    splitForm,
+    picks,
+    el('p', { className: 'sub' }, '작업 제목만 AI에 보냅니다. 팀원 이름과 시간은 보내지 않습니다.'));
+
+  // 고른 칸 = 체크했고 제목이 비어 있지 않은 칸
+  const chosen = () => [...list.children]
+    .filter((r) => r.querySelector('input[type="checkbox"]').checked)
+    .map((r) => r.querySelector('input[type="text"]').value.trim())
+    .filter(Boolean);
+  const updateCount = () => {
+    const n = chosen().length;
+    registerButton.textContent = `고른 ${n}개 등록`;
+    registerButton.disabled = n === 0;
+  };
+  // 한 줄 = 고르기 체크박스 + 고칠 수 있는 제목
+  const row = (value = '') => el('div', { className: 'row' },
+    el('label', { className: 'check' }, el('input', { type: 'checkbox', checked: true, ariaLabel: '이 세부 작업 등록' })),
+    el('label', { className: 'field' }, el('input', { type: 'text', value, maxLength: 100, ariaLabel: '세부 작업 제목', placeholder: '예: 대본 작성' })));
+  list.addEventListener('input', updateCount);
+  list.addEventListener('change', updateCount);
+  addRow.addEventListener('click', () => {
+    list.append(row());
+    updateCount();
+    list.lastChild.querySelector('input[type="text"]').focus();
+  });
+
+  // 노랑은 AI 가 실제로 제안했을 때만 — 처음 · 실패 · 등록 뒤에는 일반 패널
+  function show(source, subtasks) {
+    breakdown.classList.toggle('panel--ai', source === 'ai');
+    badgeBox.replaceChildren(source === 'ai' ? el('span', { className: 'badge badge--ai' }, 'AI 제안')
+      : source === 'fallback' ? el('span', { className: 'badge' }, '직접 입력') : '');
+    notice.textContent = source === 'ai' ? '등록할 세부 작업을 고르고, 필요하면 제목을 고쳐 주세요.'
+      : 'AI 제안을 불러오지 못했습니다. 세부 작업을 직접 적어 주세요.';
+    list.replaceChildren(...(source === 'ai' ? subtasks : ['', '', '']).map((t) => row(t)));
+    picks.hidden = !source;
+    // 진한 파란 버튼은 구역에 하나 — 목록이 열리면 등록 버튼이 주 행동
+    splitButton.className = source ? 'btn' : 'btn btn--primary';
+    updateCount();
+  }
+
+  splitForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    splitButton.disabled = true;
+    splitButton.textContent = '나누는 중…';
+    splitError.textContent = '';
+    registerError.textContent = '';
+    try {
+      const { subtasks, source } = await api('/api/breakdown', { method: 'POST', body: { title: title.value } });
+      show(source, subtasks);
+    } catch (error) {
+      splitError.textContent = error.message; // 400(제목 없음) 등. AI 실패는 서버가 200 + fallback 으로 돌려준다
+    } finally {
+      splitButton.disabled = false;
+      splitButton.textContent = 'AI로 나누기';
+    }
+  });
+
+  // 상위 작업을 먼저 만들고, 받은 id 를 parentId 로 세부 작업을 등록한다
+  registerButton.addEventListener('click', () => {
+    const subtitles = chosen();
+    act(registerButton, registerError, async () => {
+      const parent = await api('/api/tasks', { method: 'POST', body: { title: title.value.trim() } });
+      for (const t of subtitles) await api('/api/tasks', { method: 'POST', body: { title: t, parentId: parent.id } });
+      title.value = '';
+      show(null, []);
+    }).then(updateCount); // act 가 끝에 버튼을 다시 켜므로 개수로 다시 판단한다
   });
 }
