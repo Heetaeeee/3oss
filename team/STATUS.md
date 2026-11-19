@@ -311,6 +311,8 @@ save(db);                   →  saveRoom(req.roomCode, db);
 
 ## 6. 배포 — AWS EC2 + Docker, 수동 배포
 
+> **따라 하는 순서는 [DEPLOY.md](DEPLOY.md)** 에 있습니다 — 코드 준비부터 https 주소, 업데이트 · 백업, 막혔을 때까지.
+
 **공지 (수업)** — 최종 결과물은 **배포된 서비스 주소(URL)**. Docker 배포는 **권장, 필수 아님**. Vercel 처럼 배포를 자동으로 처리하는 서비스는 쓰지 않음. (원문 링크 · 캡처는 맨 위 "근거 자료"에)
 
 **정한 구성** — 7조가 같은 조건(Express · JSON 파일 저장 · 자동 배포 금지)으로 이미 배포한 구성을 따릅니다. 만든 순서가 [7조 docs/deploy.md](https://github.com/cjs1004ounds/oss-teamproject/blob/main/docs/deploy.md)에 있어 그대로 참고합니다 (11/19 내용 확인).
