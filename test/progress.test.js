@@ -74,3 +74,22 @@ test('해가 바뀌는 주도 한 주로 묶는다', () => {
 test('오늘이 속한 주보다 뒤의 주는 넣지 않는다', () => {
   assert.deepEqual(weeklyRates([t({ dueDate: '2026-11-30' })], '2026-11-20'), []);
 });
+
+// 상위 작업 p 를 세부 작업 a · b 로 나눈 상황
+const split = (o = {}) => [
+  t({ id: 'p', hours: 6, assigneeId: 'm1', dueDate: '2026-11-18', ...o.p }),
+  t({ id: 'a', parentId: 'p', hours: 2, assigneeId: 'm1', status: 'DONE', dueDate: '2026-11-18' }),
+  t({ id: 'b', parentId: 'p', hours: 4, assigneeId: 'm2', status: 'DONE', dueDate: '2026-11-18' }),
+];
+test('세부 작업을 다 끝내면 상위 작업이 남아 있어도 진행률 100', () => {
+  assert.equal(progressPercent(split()), 100);
+});
+test('완료 작업 비중은 상위 작업의 시간을 세지 않는다', () => {
+  assert.deepEqual(doneShare('m1', split({ p: { status: 'DONE' } })), { percent: 33, hours: 2, totalHours: 6 });
+});
+test('주차별 수행률도 상위 작업을 세지 않는다', () => {
+  assert.deepEqual(weeklyRates(split(), '2026-11-18'), [{ weekStart: '2026-11-16', rate: 100, done: 2, total: 2 }]);
+});
+test('세부 작업이 없는 작업은 그대로 센다', () => {
+  assert.equal(progressPercent([t({ id: 'p' }), t({ id: 'q', status: 'DONE' })]), 50);
+});
