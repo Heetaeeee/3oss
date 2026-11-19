@@ -1,4 +1,4 @@
-// A 김권섭 — #sizing (sizing.html). #breakdown 은 A-6 에서 채운다.
+// A 김권섭 — #breakdown (큰 작업 나누기) · #sizing (크기 추정), sizing.html
 // 서버에서 온 글자는 전부 textContent 로만 넣는다. 추정값은 GET /api/estimates 의 요약만 쓴다.
 import { api, refresh } from './api.js';
 
@@ -253,5 +253,129 @@ if (slot) {
     const ordered = [...own.filter((t) => t.hours == null), ...own.filter((t) => t.hours != null)];
     // shortcut: 카드를 통째로 다시 그리고 입력값만 되살린다 — 커서 위치 · 펼친 수정 기록은 닫힌다. 불편하면 바뀐 카드만 갱신
     fill(...ordered.map((t) => card(t, tasks, members, summaries[t.id])));
+  });
+}
+
+// ---------- #breakdown: 큰 작업 나누기 (AI 제안 → 골라서 등록) ----------
+// 처음 한 번만 그린다 — 'data' 로 다시 그리면 입력하던 제목 · 고른 목록이 지워진다
+
+const breakdown = document.querySelector('#breakdown');
+if (breakdown) {
+  const badgeBox = el('span');
+  const title = el('input', { maxLength: 100, placeholder: '예: 발표 준비' });
+  const splitButton = el('button', { className: 'btn btn--primary', type: 'submit' }, 'AI로 나누기');
+  const splitError = el('p', { className: 'msg-error', role: 'alert' });
+  const splitForm = el('form', { className: 'stack', noValidate: true },
+    el('div', { className: 'row' }, field('나눌 작업 제목', title), splitButton),
+    splitError);
+
+  const notice = el('p', { className: 'sub' });
+  const list = el('div', { className: 'stack' });
+  const addRow = el('button', { className: 'btn btn--quiet', type: 'button' }, '칸 추가');
+  const registerButton = el('button', { className: 'btn btn--primary', type: 'button', disabled: true }, '고른 0개 등록');
+  const registerError = el('p', { className: 'msg-error', role: 'alert' });
+  const picks = el('div', { className: 'stack', hidden: true },
+    notice, list, el('div', { className: 'between' }, addRow, registerButton), registerError);
+
+  breakdown.replaceChildren(
+    el('div', { className: 'between' }, breakdown.querySelector('h2'), badgeBox),
+    splitForm,
+    picks,
+    el('p', { className: 'sub' }, '작업 제목만 AI에 보냅니다. 팀원 이름과 시간은 보내지 않습니다.'));
+
+  // 세부 작업 등록이 중간에 실패하면 만든 상위 작업을 기억해 두고, 다시 누를 때 같은 상위 작업 아래에 남은 것만 등록한다
+  // (작업 삭제 API 가 없어 되돌릴 수 없으므로 이어서 한다)
+  let parentId = null;
+  // 등록하는 동안(요청 사이 await) 입력 · 다시 나누기 · 두 번째 등록을 막는다 — 그 사이 parentId 가 지워지거나 같은 줄이 두 번 나가지 않게
+  let registering = false;
+  const textOf = (r) => r.querySelector('input[type="text"]').value.trim();
+  // 등록할 칸 = 아직 등록 안 됐고, 체크했고, 제목이 비어 있지 않은 칸
+  const pendingRows = () => [...list.children]
+    .filter((r) => !r.dataset.done && r.querySelector('input[type="checkbox"]').checked && textOf(r));
+  const updateCount = () => {
+    const n = pendingRows().length;
+    registerButton.textContent = parentId ? `남은 ${n}개 등록` : `고른 ${n}개 등록`;
+    registerButton.disabled = registering || n === 0;
+  };
+  const setRegistering = (on) => {
+    registering = on;
+    for (const c of [title, splitButton, addRow]) c.disabled = on;
+    // 이미 등록된 줄은 계속 잠가 둔다
+    for (const r of list.children) if (!r.dataset.done) r.querySelectorAll('input').forEach((i) => { i.disabled = on; });
+    updateCount();
+  };
+  // 한 줄 = 고르기 체크박스 + 고칠 수 있는 제목
+  const row = (value = '') => el('div', { className: 'row' },
+    el('label', { className: 'check' }, el('input', { type: 'checkbox', checked: true, ariaLabel: '이 세부 작업 등록' })),
+    el('label', { className: 'field' }, el('input', { type: 'text', value, maxLength: 100, ariaLabel: '세부 작업 제목', placeholder: '예: 대본 작성' })));
+  list.addEventListener('input', updateCount);
+  list.addEventListener('change', updateCount);
+  addRow.addEventListener('click', () => {
+    list.append(row());
+    updateCount();
+    list.lastChild.querySelector('input[type="text"]').focus();
+  });
+
+  // 노랑은 AI 가 실제로 제안했을 때만 — 처음 · 실패 · 등록 뒤에는 일반 패널
+  function show(source, subtasks) {
+    parentId = null; // 새로 나누거나 등록을 마치면 이어 하던 상위 작업은 잊는다 (만든 것은 그대로 남아 있다)
+    breakdown.classList.toggle('panel--ai', source === 'ai');
+    badgeBox.replaceChildren(source === 'ai' ? el('span', { className: 'badge badge--ai' }, 'AI 제안')
+      : source === 'fallback' ? el('span', { className: 'badge' }, '직접 입력') : '');
+    notice.textContent = source === 'ai' ? '등록할 세부 작업을 고르고, 필요하면 제목을 고쳐 주세요.'
+      : 'AI 제안을 불러오지 못했습니다. 세부 작업을 직접 적어 주세요.';
+    list.replaceChildren(...(source === 'ai' ? subtasks : ['', '', '']).map((t) => row(t)));
+    picks.hidden = !source;
+    // 진한 파란 버튼은 구역에 하나 — 목록이 열리면 등록 버튼이 주 행동
+    splitButton.className = source ? 'btn' : 'btn btn--primary';
+    updateCount();
+  }
+
+  splitForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (registering) return; // 엔터로 제출해도 등록 중에는 다시 나누지 않는다
+    splitButton.disabled = true;
+    splitButton.textContent = '나누는 중…';
+    splitError.textContent = '';
+    registerError.textContent = '';
+    try {
+      const { subtasks, source } = await api('/api/breakdown', { method: 'POST', body: { title: title.value } });
+      show(source, subtasks);
+    } catch (error) {
+      splitError.textContent = error.message; // 400(제목 없음) 등. AI 실패는 서버가 200 + fallback 으로 돌려준다
+    } finally {
+      splitButton.disabled = false;
+      splitButton.textContent = 'AI로 나누기';
+    }
+  });
+
+  // 상위 작업을 먼저 만들고, 받은 id 를 parentId 로 세부 작업을 하나씩 등록한다
+  registerButton.addEventListener('click', async () => {
+    if (registering) return;
+    const rows = pendingRows();
+    setRegistering(true);
+    registerError.textContent = '';
+    let done = 0;
+    try {
+      if (!parentId) parentId = (await api('/api/tasks', { method: 'POST', body: { title: title.value.trim() } })).id;
+      for (const r of rows) {
+        await api('/api/tasks', { method: 'POST', body: { title: textOf(r), parentId } });
+        // 등록된 줄은 잠가서 다시 보내지 않는다
+        r.dataset.done = '1';
+        r.querySelectorAll('input').forEach((i) => { i.disabled = true; });
+        done += 1;
+      }
+      title.value = '';
+      show(null, []);
+    } catch (error) {
+      // 네트워크 오류는 브라우저 영어 문장(Failed to fetch)이라 바꿔 보여 준다. 서버 오류는 서버 문장 그대로
+      const reason = error instanceof TypeError ? '서버에 연결하지 못했습니다.' : error.message;
+      registerError.textContent = parentId
+        ? `${reason} 세부 작업 ${done}개까지 등록했습니다. 다시 누르면 남은 것만 같은 상위 작업 아래에 등록합니다.`
+        : reason;
+    }
+    // 일부만 등록됐어도 아래 크기 추정 목록에 보이게
+    await refresh().catch(() => {});
+    setRegistering(false);
   });
 }
