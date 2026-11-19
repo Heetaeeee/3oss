@@ -102,7 +102,7 @@ export function recommend(members, tasks, newHours)
 | `loadPercent` | `Math.round(hours / availableHours * 100)`. `availableHours <= 0` 이면 `null` |
 | `recommend` | 가능한 시간이 0 이하인 팀원은 `excluded` 로. 나머지는 `projectedLoad` 오름차순 → `currentLoad` 오름차순 → 원래 등록 순서. 첫 번째가 `recommendedId`. 후보가 없으면 `null` |
 
--추천 순위는 반올림 전 예상 부담률 → 반올림 전 현재 부담률 → 팀원 등록 순서로 정합니다. 화면과 API 응답의 부담률만 정수로 반올림합니다.
+- 추천 순위는 반올림 전 예상 부담률 → 반올림 전 현재 부담률 → 팀원 등록 순서로 정합니다. 화면과 API 응답의 부담률만 정수로 반올림합니다.
 
 **먼저 쓸 테스트 — 이게 스펙입니다.**
 
@@ -249,6 +249,7 @@ POST /api/recommend   { hours }   → 아직 등록하지 않은 작업을 가�
 GET /api/loads
 → { members: [{ memberId, name, currentHours, availableHours, load, overloaded }] }
 ```
+
 - `currentHours`는 맡은 미완료 작업의 확정 시간 합계, `availableHours`는 팀원이 입력한 작업 가능 시간입니다.
 - 완료된 작업의 `taskId`로 추천을 요청하면 400으로 거절합니다.
 - 추천 API 테스트는 메모리 예시 데이터를 사용하며 실제 저장 파일을 변경하지 않습니다.
