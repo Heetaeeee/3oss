@@ -283,14 +283,16 @@ if (breakdown) {
     picks,
     el('p', { className: 'sub' }, '작업 제목만 AI에 보냅니다. 팀원 이름과 시간은 보내지 않습니다.'));
 
-  // 고른 칸 = 체크했고 제목이 비어 있지 않은 칸
-  const chosen = () => [...list.children]
-    .filter((r) => r.querySelector('input[type="checkbox"]').checked)
-    .map((r) => r.querySelector('input[type="text"]').value.trim())
-    .filter(Boolean);
+  // 세부 작업 등록이 중간에 실패하면 만든 상위 작업을 기억해 두고, 다시 누를 때 같은 상위 작업 아래에 남은 것만 등록한다
+  // (작업 삭제 API 가 없어 되돌릴 수 없으므로 이어서 한다)
+  let parentId = null;
+  const textOf = (r) => r.querySelector('input[type="text"]').value.trim();
+  // 등록할 칸 = 아직 등록 안 됐고, 체크했고, 제목이 비어 있지 않은 칸
+  const pendingRows = () => [...list.children]
+    .filter((r) => !r.dataset.done && r.querySelector('input[type="checkbox"]').checked && textOf(r));
   const updateCount = () => {
-    const n = chosen().length;
-    registerButton.textContent = `고른 ${n}개 등록`;
+    const n = pendingRows().length;
+    registerButton.textContent = parentId ? `남은 ${n}개 등록` : `고른 ${n}개 등록`;
     registerButton.disabled = n === 0;
   };
   // 한 줄 = 고르기 체크박스 + 고칠 수 있는 제목
@@ -307,6 +309,7 @@ if (breakdown) {
 
   // 노랑은 AI 가 실제로 제안했을 때만 — 처음 · 실패 · 등록 뒤에는 일반 패널
   function show(source, subtasks) {
+    parentId = null; // 새로 나누거나 등록을 마치면 이어 하던 상위 작업은 잊는다 (만든 것은 그대로 남아 있다)
     breakdown.classList.toggle('panel--ai', source === 'ai');
     badgeBox.replaceChildren(source === 'ai' ? el('span', { className: 'badge badge--ai' }, 'AI 제안')
       : source === 'fallback' ? el('span', { className: 'badge' }, '직접 입력') : '');
@@ -336,14 +339,32 @@ if (breakdown) {
     }
   });
 
-  // 상위 작업을 먼저 만들고, 받은 id 를 parentId 로 세부 작업을 등록한다
-  registerButton.addEventListener('click', () => {
-    const subtitles = chosen();
-    act(registerButton, registerError, async () => {
-      const parent = await api('/api/tasks', { method: 'POST', body: { title: title.value.trim() } });
-      for (const t of subtitles) await api('/api/tasks', { method: 'POST', body: { title: t, parentId: parent.id } });
+  // 상위 작업을 먼저 만들고, 받은 id 를 parentId 로 세부 작업을 하나씩 등록한다
+  registerButton.addEventListener('click', async () => {
+    const rows = pendingRows();
+    registerButton.disabled = true;
+    registerError.textContent = '';
+    let done = 0;
+    try {
+      if (!parentId) parentId = (await api('/api/tasks', { method: 'POST', body: { title: title.value.trim() } })).id;
+      for (const r of rows) {
+        await api('/api/tasks', { method: 'POST', body: { title: textOf(r), parentId } });
+        // 등록된 줄은 잠가서 다시 보내지 않는다
+        r.dataset.done = '1';
+        r.querySelectorAll('input').forEach((i) => { i.disabled = true; });
+        done += 1;
+      }
       title.value = '';
       show(null, []);
-    }).then(updateCount); // act 가 끝에 버튼을 다시 켜므로 개수로 다시 판단한다
+    } catch (error) {
+      // 네트워크 오류는 브라우저 영어 문장(Failed to fetch)이라 바꿔 보여 준다. 서버 오류는 서버 문장 그대로
+      const reason = error instanceof TypeError ? '서버에 연결하지 못했습니다.' : error.message;
+      registerError.textContent = parentId
+        ? `${reason} 세부 작업 ${done}개까지 등록했습니다. 다시 누르면 남은 것만 같은 상위 작업 아래에 등록합니다.`
+        : reason;
+    }
+    // 일부만 등록됐어도 아래 크기 추정 목록에 보이게
+    await refresh().catch(() => {});
+    updateCount();
   });
 }
