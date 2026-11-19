@@ -133,10 +133,6 @@ function taskCard(task, members, tasks) {
     ...members.map((m) => el('option', { value: m.id, selected: task.assigneeId === m.id }, m.name)));
   assignee.addEventListener('change', () => patch(assignee, { assigneeId: assignee.value || null }));
 
-  // A 의 추정 화면이 붙기 전에도 크기를 넣을 수 있게
-  const hours = el('input', { type: 'number', min: 0.5, step: 0.5, value: task.hours ?? '' });
-  hours.addEventListener('change', () => patch(hours, { hours: Number.isNaN(hours.valueAsNumber) ? null : hours.valueAsNumber }));
-
   const d = daysLeft(task.dueDate);
   const owner = members.find((m) => m.id === task.assigneeId);
   const parent = tasks.find((t) => t.id === task.parentId);
@@ -144,6 +140,7 @@ function taskCard(task, members, tasks) {
     d === null || task.status === 'DONE' ? null
       : d < 0 ? el('span', { className: 'badge badge--over' }, `지남 ${-d}일`)
       : el('span', { className: 'badge' }, d === 0 ? 'D-day' : `D-${d}`),
+    // 크기는 작업 정의 화면의 블라인드 추정으로만 정한다. 여기서 넣으면 전원 제출 전에 확정돼 버림
     task.hours === null ? el('span', { className: 'badge badge--todo' }, '크기 미정')
       : el('span', { className: 'badge badge--team' }, `${task.hours}시간 확정`),
     owner ? el('span', { className: 'badge badge--team' }, `담당 ${owner.name}`)
@@ -154,7 +151,7 @@ function taskCard(task, members, tasks) {
     parent ? el('p', { className: 'sub' }, `↳ ${parent.title}의 세부 작업`) : null,
     badges,
     el('div', { className: 'slot stack' },
-      el('div', { className: 'row' }, field('담당자', assignee), field('크기(시간)', hours, 'field field--s')),
+      el('div', { className: 'row' }, field('담당자', assignee)),
       error));
 }
 
@@ -187,16 +184,19 @@ async function drawWeekly(tasks) {
 }
 
 async function drawProgress(slot, tasks) {
+  // 서버 progress.js 와 같은 기준: 다른 작업이 parentId 로 가리키는 상위 작업은 세지 않는다
+  const parentIds = new Set(tasks.map((t) => t.parentId).filter(Boolean));
+  const counted = tasks.filter((t) => !parentIds.has(t.id));
   // 주차별 조회가 실패해도 진행률 · 완료 작업 비중은 보이게 따로 받는다
-  const [p, weekly] = await Promise.all([api('/api/progress'), drawWeekly(tasks)]);
-  const done = tasks.filter((t) => t.status === 'DONE').length;
+  const [p, weekly] = await Promise.all([api('/api/progress'), drawWeekly(counted)]);
+  const done = counted.filter((t) => t.status === 'DONE').length;
   const shares = p.doneHoursTotal === 0
     ? [el('p', { className: 'sub' }, done === 0 ? '아직 완료된 작업이 없습니다.' : '완료한 작업의 확정 시간이 아직 없습니다.')]
     : p.members.map((m) => meter(m.name, `${m.doneShare}% · ${m.doneHours}시간 / ${p.doneHoursTotal}시간`, m.doneShare));
   // A 의 지난주 요약 자리. 다시 그려도 A 가 채운 내용이 지워지지 않게 같은 노드를 다시 붙인다
   const summary = slot.querySelector('#weekly-summary') ?? el('div', { id: 'weekly-summary' });
   fill(slot,
-    meter('전체 진행률', `${p.progress}% · ${done}건 / ${tasks.length}건`, p.progress),
+    meter('전체 진행률', `${p.progress}% · ${done}건 / ${counted.length}건`, p.progress),
     el('h3', { className: 'slot' }, '완료 작업 비중'),
     ...shares,
     el('p', { className: 'sub' }, '완료한 작업의 확정 예상 시간 기준입니다. 실제 걸린 시간과 다를 수 있습니다.'),

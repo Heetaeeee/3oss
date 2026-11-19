@@ -1,6 +1,15 @@
 import { api, refresh } from './api.js';
 
 const loadSlot = document.querySelector('#load');
+const recommendSlot = document.querySelector('#recommend');
+
+const hoursFormatter = new Intl.NumberFormat('ko-KR', {
+  maximumFractionDigits: 2
+});
+
+function formatHours(value) {
+  return hoursFormatter.format(value);
+}
 
 function el(tag, props = {}, ...children) {
   const node = Object.assign(document.createElement(tag), props);
@@ -75,11 +84,16 @@ function drawLoads(data, members) {
       bar
     );
 
-    if (member.load === null) {
-      meter.append(
-        el('p', { className: 'sub' }, '가능한 시간이 0시간입니다.')
-      );
-    }
+    // 가능한 시간과 관계없이 모든 팀원의 계산 근거를 표시합니다.
+    // 시간 표시만 정리하며 실제 계산값은 변경하지 않습니다.
+    meter.append(
+      el(
+        'p',
+        { className: 'sub' },
+        `맡은 미완료 작업 ${formatHours(member.currentHours)}시간 / ` +
+        `가능한 시간 ${formatHours(member.availableHours)}시간`
+      )
+    );
 
     return meter;
   });
@@ -123,7 +137,6 @@ document.addEventListener('data', async (event) => {
     );
   }
 });
-const recommendSlot = document.querySelector('#recommend');
 
 function drawRecommendations(tasks, members) {
   if (!recommendSlot) return;
@@ -137,48 +150,48 @@ function drawRecommendations(tasks, members) {
   );
 
   if (pending.length === 0) {
-  const unfinished = tasks.filter(
-    (task) => task.status !== 'DONE'
-  );
+    const unfinished = tasks.filter(
+      (task) => task.status !== 'DONE'
+    );
 
-  const needsEstimate = unfinished.some(
-    (task) =>
-      task.assigneeId == null &&
-      task.hours == null
-  );
+    const needsEstimate = unfinished.some(
+      (task) =>
+        task.assigneeId == null &&
+        task.hours == null
+    );
 
-  let message;
-  let linkText;
-  let href;
+    let message;
+    let linkText;
+    let href;
 
-  if (tasks.length === 0) {
-    message = '아직 작업이 없습니다. 작업을 먼저 등록해 주세요.';
-    linkText = '등록 · 진행으로 이동';
-    href = 'board.html';
-  } else if (unfinished.length === 0) {
-    message = '모든 작업이 완료됐습니다.';
-    linkText = '진행 현황 확인';
-    href = 'board.html';
-  } else if (needsEstimate) {
-    message =
-      '담당자가 정해지지 않은 작업의 크기가 미확정입니다. ' +
-      '작업 정의 화면에서 크기를 먼저 확정해 주세요.';
-    linkText = '작업 정의로 이동';
-    href = 'sizing.html';
-  } else {
-    message = '모든 미완료 작업에 담당자가 배정돼 있습니다.';
-    linkText = '배정 현황 확인';
-    href = 'board.html';
+    if (tasks.length === 0) {
+      message = '아직 작업이 없습니다. 작업을 먼저 등록해 주세요.';
+      linkText = '등록 · 진행으로 이동';
+      href = 'board.html';
+    } else if (unfinished.length === 0) {
+      message = '모든 작업이 완료됐습니다.';
+      linkText = '진행 현황 확인';
+      href = 'board.html';
+    } else if (needsEstimate) {
+      message =
+        '담당자가 정해지지 않은 작업의 크기가 미확정입니다. ' +
+        '작업 정의 화면에서 크기를 먼저 확정해 주세요.';
+      linkText = '작업 정의로 이동';
+      href = 'sizing.html';
+    } else {
+      message = '모든 미완료 작업에 담당자가 배정돼 있습니다.';
+      linkText = '배정 현황 확인';
+      href = 'board.html';
+    }
+
+    recommendSlot.replaceChildren(
+      title,
+      el('p', { className: 'sub' }, message),
+      el('a', { href }, linkText)
+    );
+
+    return;
   }
-
-  recommendSlot.replaceChildren(
-    title,
-    el('p', { className: 'sub' }, message),
-    el('a', { href }, linkText)
-  );
-
-  return;
-}
 
   const cards = pending.map((task) => {
     const resultBox = el('div', { className: 'slot stack' });
@@ -198,7 +211,6 @@ function drawRecommendations(tasks, members) {
     );
 
     const badges = el('div', { className: 'badges' });
-
     const days = taskDaysLeft(task.dueDate);
 
     if (days !== null) {
@@ -221,7 +233,7 @@ function drawRecommendations(tasks, members) {
       el(
         'span',
         { className: 'badge badge--team' },
-        `${task.hours}시간 확정`
+        `${formatHours(task.hours)}시간 확정`
       ),
       el(
         'span',
@@ -336,10 +348,10 @@ function drawCandidates(slot, task, result, members) {
     const recommended = candidate.memberId === result.recommendedId;
 
     const name = memberChip(
-  candidate.memberId,
-  candidate.name,
-  members
-);
+      candidate.memberId,
+      candidate.name,
+      members
+    );
 
     if (recommended) {
       name.append(

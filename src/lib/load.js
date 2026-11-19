@@ -17,7 +17,7 @@ export function loadPercent(hours, availableHours) {
 }
 
 export function recommend(members, tasks, newHours) {
-  const candidates = [];
+  const ranked = [];
   const excluded = [];
 
   for (const member of members) {
@@ -33,23 +33,28 @@ export function recommend(members, tasks, newHours) {
 
     const hours = currentHours(member.id, tasks);
 
-    candidates.push({
+    ranked.push({
       memberId: member.id,
       name: member.name,
-      currentLoad: loadPercent(hours, member.availableHours),
-      projectedLoad: loadPercent(
-        hours + newHours,
-        member.availableHours
-      )
+      currentRatio: hours / member.availableHours,
+      projectedRatio: (hours + newHours) / member.availableHours
     });
   }
 
-  candidates.sort((a, b) => {
-    return (
-      a.projectedLoad - b.projectedLoad ||
-      a.currentLoad - b.currentLoad
-    );
-  });
+  // 순위는 반올림 전 비율로 정한다.
+  // 두 비율이 모두 같으면 안정 정렬에 따라 등록 순서를 유지한다.
+  ranked.sort((a, b) =>
+    a.projectedRatio - b.projectedRatio ||
+    a.currentRatio - b.currentRatio
+  );
+
+  // 화면과 기존 API 응답에는 정수 퍼센트만 전달한다.
+  const candidates = ranked.map((member) => ({
+    memberId: member.memberId,
+    name: member.name,
+    currentLoad: Math.round(member.currentRatio * 100),
+    projectedLoad: Math.round(member.projectedRatio * 100)
+  }));
 
   return {
     recommendedId: candidates[0]?.memberId ?? null,

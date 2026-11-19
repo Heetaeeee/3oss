@@ -6,7 +6,14 @@ export function nextCompletedAt(prevStatus, nextStatus, prevCompletedAt, now) {
   return nextStatus === 'DONE' ? now : null;
 }
 
-export function progressPercent(tasks) {
+// 상위 작업 = 다른 작업이 parentId 로 가리키는 작업. 시간과 완료는 세부 작업에서 세므로 뺀다 (team/README "상위 작업은 세지 않습니다")
+export function withoutParents(tasks) {
+  const parentIds = new Set(tasks.map((t) => t.parentId).filter(Boolean));
+  return tasks.filter((t) => !parentIds.has(t.id));
+}
+
+export function progressPercent(allTasks) {
+  const tasks = withoutParents(allTasks);
   if (tasks.length === 0) return 0;
   return Math.round((tasks.filter((t) => t.status === 'DONE').length / tasks.length) * 100);
 }
@@ -22,7 +29,7 @@ export function daysLeft(dueDate, today) {
 }
 
 export function doneShare(memberId, tasks) {
-  const done = tasks.filter((t) => t.status === 'DONE' && t.hours !== null);
+  const done = withoutParents(tasks).filter((t) => t.status === 'DONE' && t.hours !== null);
   const totalHours = done.reduce((sum, t) => sum + t.hours, 0);
   const hours = done.filter((t) => t.assigneeId === memberId).reduce((sum, t) => sum + t.hours, 0);
   return { percent: totalHours === 0 ? 0 : Math.round((hours / totalHours) * 100), hours, totalHours };
@@ -40,7 +47,7 @@ function weekStartOf(s) {
 export function weeklyRates(tasks, today) {
   const thisWeek = weekStartOf(today);
   const weeks = new Map();
-  for (const task of tasks) {
+  for (const task of withoutParents(tasks)) {
     if (task.dueDate === null) continue;
     const start = weekStartOf(task.dueDate);
     if (start > thisWeek) continue;
