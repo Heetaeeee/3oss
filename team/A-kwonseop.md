@@ -293,7 +293,7 @@ export async function askLlm(prompt, generationConfig)
 
 - Node 내장 `fetch` 를 씁니다. SDK 패키지를 추가하지 않습니다.
 - `GEMINI_API_KEY` 가 없으면 호출하지 않고 바로 `null`.
-- `AbortSignal.timeout(8000)` 으로 8초 제한. 시간 초과 · 네트워크 오류 · 200이 아닌 응답 · 글자 없는 응답(차단 등) 전부 `null`.
+- `AbortSignal.timeout(15000)` 으로 15초 제한 (처음엔 8초였으나 11/20 Google 응답이 9.8 ~ 15초라 대부분 끊겨서 늘림). 시간 초과 · 네트워크 오류 · 200이 아닌 응답 · 글자 없는 응답(차단 등) 전부 `null`.
 - 요청 형식 (2026-11 [Gemini API 문서](https://ai.google.dev/gemini-api/docs) 기준): `POST https://generativelanguage.googleapis.com/v1beta/models/{모델}:generateContent`, 본문 `{ contents: [{ parts: [{ text }] }], generationConfig }`, 응답 글자는 `candidates[0].content.parts[].text`.
 - **키는 `x-goog-api-key` 헤더로만** 보냅니다. 주소(`?key=`)에 넣으면 로그 · 오류 메시지에 남을 수 있습니다.
 - 모델은 `GEMINI_MODEL`, 비어 있으면 안정판 경량 모델 `gemini-3.5-flash-lite`. (`gemini-2.5-flash` 는 지원 종료 예정이라 쓰지 않습니다.) 유료 API가 있어야만 동작하면 안 됩니다.
@@ -354,13 +354,13 @@ POST /api/breakdown   { title }
 
 ## A-7. 마무리 점검표
 
-- [ ] `npm test` 에서 A의 테스트 32개가 통과한다
-- [ ] `.env` 의 `GEMINI_API_KEY` 를 비우고 서버를 켜도 작업 등록 · 추정 · 추천이 된다
-- [ ] 키를 일부러 틀리게 넣어도 `/api/breakdown` 이 200 + `fallback` 을 돌려준다
-- [ ] 와이파이를 끄고 눌러도 화면이 멈추지 않는다 (8초 안에 직접 입력으로 넘어감)
-- [ ] 한 명만 추정을 낸 상태에서 `GET /api/estimates` 와 `GET /api/tasks` 응답(개발자 도구 네트워크 탭)에 그 값과 근거가 없다
-- [ ] 같은 제목을 다섯 번 넣어 응답에 숫자 · 담당자가 섞이지 않는지 본다. 섞이면 프롬프트를 고친다
-- [ ] 이상한 입력("ㅁㄴㅇㄹ", 아주 긴 문장, 프롬프트를 무시하라는 문장)에도 제목 배열 아니면 빈 배열만 나온다
+- [x] `npm test` 에서 A의 테스트 32개가 통과한다 — 11/20 확인 (전체 93개)
+- [x] `.env` 의 `GEMINI_API_KEY` 를 비우고 서버를 켜도 작업 등록 · 추정 · 추천이 된다 — 11/20 확인
+- [x] 키를 일부러 틀리게 넣어도 `/api/breakdown` 이 200 + `fallback` 을 돌려준다 — 11/20 실제 Google 호출(HTTP 400)로 확인
+- [x] 와이파이를 끄고 눌러도 화면이 멈추지 않는다 (15초 안에 직접 입력으로 넘어감) — 11/20 응답 없는 Google 은 제한 시간에 `fallback` (8초 때 8.1초, 15초로 늘린 뒤 15.1초), 서버에 닿지 못하면 `서버에 연결하지 못했습니다.`
+- [x] 한 명만 추정을 낸 상태에서 `GET /api/estimates` 와 `GET /api/tasks` 응답(개발자 도구 네트워크 탭)에 그 값과 근거가 없다 — 11/20 확인
+- [x] 같은 제목을 다섯 번 넣어 응답에 숫자 · 담당자가 섞이지 않는지 본다. 섞이면 프롬프트를 고친다 — 11/20 "중간 발표 준비" 실제 응답 5번 모두 숫자 · 이름 · 담당 없음 (Google 이 느려 연속이 아니라 여러 번에 걸쳐 모음). 그날 Google 응답이 9.8 ~ 15초로 8초 제한보다 길어 대부분 직접 입력으로 넘어가서 **제한을 15초로 늘림**
+- [x] 이상한 입력("ㅁㄴㅇㄹ", 아주 긴 문장, 프롬프트를 무시하라는 문장)에도 제목 배열 아니면 빈 배열만 나온다 — 서버가 `parseSubtasks` 로 막으므로 AI 가 무엇을 돌려줘도 보장됨(객체 · 설명문 → `[]`, 시간 · 40자 초과 제거). 실제 응답으로는 11/20 Google 503 · 시간 초과로 확인 못 함
 
 ## 발표 기준 일정
 
