@@ -16,6 +16,9 @@ function field(label, input, className = 'field') {
   return el('label', { className }, label, input);
 }
 
+// 네트워크 오류(서버에 닿지 못함)는 브라우저 영어 문장(Failed to fetch)이라 바꿔 보여 준다. 서버 오류는 서버 문장 그대로
+const messageOf = (error) => (error instanceof TypeError ? '서버에 연결하지 못했습니다.' : error.message);
+
 // 폼은 noValidate — 브라우저 기본 경고 대신 서버의 안내 문장을 폼 아래에 띄운다 (보드와 같게)
 // 버튼을 잠근 채 요청 → 성공하면 refresh, 실패하면 서버 문장을 errorBox 에 띄우고 입력칸은 그대로 둔다
 async function act(button, errorBox, fn) {
@@ -25,7 +28,7 @@ async function act(button, errorBox, fn) {
     await fn();
     await refresh();
   } catch (error) {
-    errorBox.textContent = error.message;
+    errorBox.textContent = messageOf(error);
   } finally {
     button.disabled = false;
   }
@@ -243,7 +246,7 @@ if (slot) {
     try {
       summaries = await api('/api/estimates');
     } catch (error) {
-      fill(el('p', { className: 'msg-error', role: 'alert' }, `추정 현황을 불러오지 못했습니다. ${error.message}`));
+      fill(el('p', { className: 'msg-error', role: 'alert' }, `추정 현황을 불러오지 못했습니다. ${messageOf(error)}`));
       return;
     }
     // 상위 작업(다른 작업이 parentId 로 가리키는 작업)은 세부 작업에서 추정하므로 목록에서 뺀다 — team/README "상위 작업은 세지 않습니다"
@@ -342,7 +345,7 @@ if (breakdown) {
       const { subtasks, source } = await api('/api/breakdown', { method: 'POST', body: { title: title.value } });
       show(source, subtasks);
     } catch (error) {
-      splitError.textContent = error.message; // 400(제목 없음) 등. AI 실패는 서버가 200 + fallback 으로 돌려준다
+      splitError.textContent = messageOf(error); // 400(제목 없음) 등. AI 실패는 서버가 200 + fallback 으로 돌려준다
     } finally {
       splitButton.disabled = false;
       splitButton.textContent = 'AI로 나누기';
@@ -368,8 +371,7 @@ if (breakdown) {
       title.value = '';
       show(null, []);
     } catch (error) {
-      // 네트워크 오류는 브라우저 영어 문장(Failed to fetch)이라 바꿔 보여 준다. 서버 오류는 서버 문장 그대로
-      const reason = error instanceof TypeError ? '서버에 연결하지 못했습니다.' : error.message;
+      const reason = messageOf(error);
       registerError.textContent = parentId
         ? `${reason} 세부 작업 ${done}개까지 등록했습니다. 다시 누르면 남은 것만 같은 상위 작업 아래에 등록합니다.`
         : reason;
