@@ -117,3 +117,26 @@ test('배정 가능한 팀원이 없으면 추천은 null이다', () => {
   assert.equal(result.recommendedId, null);
   assert.deepEqual(result.candidates, []);
 });
+
+test('표시 부담률이 같아도 반올림 전 예상 비율이 낮은 팀원을 추천한다', () => {
+  const team = [
+    { id: 'A', name: 'A', availableHours: 10 },
+    { id: 'B', name: 'B', availableHours: 20 }
+  ];
+
+  const tasks = [
+    task({ assigneeId: 'A', hours: 4.04 }),
+    task({ assigneeId: 'B', hours: 9.02 })
+  ];
+
+  // A: 40.4% → 50.4%
+  // B: 45.1% → 50.1%
+  // 표시값은 둘 다 50%지만 B를 먼저 추천해야 한다.
+  const result = recommend(team, tasks, 1);
+
+  assert.equal(result.recommendedId, 'B');
+  assert.deepEqual(
+    result.candidates.map((candidate) => candidate.projectedLoad),
+    [50, 50]
+  );
+});
