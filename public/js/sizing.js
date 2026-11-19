@@ -286,6 +286,8 @@ if (breakdown) {
   // 세부 작업 등록이 중간에 실패하면 만든 상위 작업을 기억해 두고, 다시 누를 때 같은 상위 작업 아래에 남은 것만 등록한다
   // (작업 삭제 API 가 없어 되돌릴 수 없으므로 이어서 한다)
   let parentId = null;
+  // 등록하는 동안(요청 사이 await) 입력 · 다시 나누기 · 두 번째 등록을 막는다 — 그 사이 parentId 가 지워지거나 같은 줄이 두 번 나가지 않게
+  let registering = false;
   const textOf = (r) => r.querySelector('input[type="text"]').value.trim();
   // 등록할 칸 = 아직 등록 안 됐고, 체크했고, 제목이 비어 있지 않은 칸
   const pendingRows = () => [...list.children]
@@ -293,7 +295,14 @@ if (breakdown) {
   const updateCount = () => {
     const n = pendingRows().length;
     registerButton.textContent = parentId ? `남은 ${n}개 등록` : `고른 ${n}개 등록`;
-    registerButton.disabled = n === 0;
+    registerButton.disabled = registering || n === 0;
+  };
+  const setRegistering = (on) => {
+    registering = on;
+    for (const c of [title, splitButton, addRow]) c.disabled = on;
+    // 이미 등록된 줄은 계속 잠가 둔다
+    for (const r of list.children) if (!r.dataset.done) r.querySelectorAll('input').forEach((i) => { i.disabled = on; });
+    updateCount();
   };
   // 한 줄 = 고르기 체크박스 + 고칠 수 있는 제목
   const row = (value = '') => el('div', { className: 'row' },
@@ -324,6 +333,7 @@ if (breakdown) {
 
   splitForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (registering) return; // 엔터로 제출해도 등록 중에는 다시 나누지 않는다
     splitButton.disabled = true;
     splitButton.textContent = '나누는 중…';
     splitError.textContent = '';
@@ -341,8 +351,9 @@ if (breakdown) {
 
   // 상위 작업을 먼저 만들고, 받은 id 를 parentId 로 세부 작업을 하나씩 등록한다
   registerButton.addEventListener('click', async () => {
+    if (registering) return;
     const rows = pendingRows();
-    registerButton.disabled = true;
+    setRegistering(true);
     registerError.textContent = '';
     let done = 0;
     try {
@@ -365,6 +376,6 @@ if (breakdown) {
     }
     // 일부만 등록됐어도 아래 크기 추정 목록에 보이게
     await refresh().catch(() => {});
-    updateCount();
+    setRegistering(false);
   });
 }
