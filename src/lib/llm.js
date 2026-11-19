@@ -1,7 +1,8 @@
 // Gemini REST 호출 (SDK 없이 Node 내장 fetch). 어떤 이유로든 실패하면 null — 절대 throw 하지 않는다.
 // 형식: https://ai.google.dev/gemini-api/docs (2026-11 확인) — POST /v1beta/models/{model}:generateContent
 const DEFAULT_MODEL = 'gemini-3.5-flash-lite'; // 안정판 경량 모델. 바꾸려면 .env 의 GEMINI_MODEL
-const TIMEOUT_MS = 8000;
+// 11/20 Google 응답이 9.8 ~ 15초로 느려 8초에서는 대부분 직접 입력으로 넘어가서 늘림. 멈추면 15초 뒤 직접 입력
+const TIMEOUT_MS = 15000;
 
 // generationConfig: 응답 형식 지정이 필요할 때만 (예: JSON 배열만 받기)
 export async function askLlm(prompt, generationConfig) {
