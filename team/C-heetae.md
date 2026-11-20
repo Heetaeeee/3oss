@@ -6,7 +6,7 @@
 |---|---|
 | **화면** | 팀원 등록, 작업 보드, 진행률 · D-day · 완료 작업 비중 — `public/js/board.js` |
 | **계산 규칙** | 입력값 검사(`validate`), 진행률 · D-day · 완료 작업 비중(`progress`) |
-| **서버 API** | `GET · POST · PATCH /api/members`, `GET · POST · PATCH /api/tasks`, `GET /api/progress` |
+| **서버 API** | `GET · POST · PATCH /api/members`, `GET · POST · PATCH · DELETE /api/tasks`, `GET /api/progress` |
 | **공용** | 홈과 기능별 페이지 `public/index.html` · `board.html` · `sizing.html` · `load.html` 의 틀, `public/js/api.js` (`style.css` 는 김권섭) |
 
 **안 맡는 것:** 부담률 · 담당자 추천(박지호), AI 세분화 · 블라인드 추정(김권섭)
@@ -37,7 +37,7 @@ C-0 ~ C-5 와 추가 구현(주차별 수행률)이 모두 `main` 에 들어갔�
 | C-5 | 진행 현황 — 진행률, 팀원별 맡은 시간 `맡은 6시간 (완료 2시간)`, 완료 작업 비중 `75% · 6시간 / 8시간`. 건수 · 맡은 시간도 상위 작업은 세지 않음 | `public/js/board.js` | #8 · #38 |
 | 추가 | 주차별 수행률 — 월요일 시작, 그 주 마감 작업 중 완료 비율, 이번 주까지만, 상위 작업 제외. 표시는 `11/16 ~ 11/22 (이번 주)`. 서버 시간대 한국 | `src/lib/progress.js` · `src/routes/weekly.js` | #25 · #26 · #27 · #31 |
 
-**테스트 38개** — validate 15 · progress 19 · completed-at 4.
+**테스트 44개** — validate 17 · progress 20 · completed-at 4 · tasks-api 3.
 
 ---
 
@@ -54,7 +54,7 @@ C-0 ~ C-5 와 추가 구현(주차별 수행률)이 모두 `main` 에 들어갔�
 
 ## C-6. 마무리 점검표
 
-- [ ] `npm test` 에서 C의 테스트 21개가 통과한다
+- [ ] `npm test` 에서 C의 테스트 44개가 통과한다
 - [ ] 팀원 3명 · 작업 5개를 넣고 새로고침해도 그대로다
 - [ ] 작업을 완료로 바꾸면 **새로고침 없이** 진행률 · 완료 작업 비중가 바뀐다
 - [ ] 가능한 시간에 음수 · 빈칸을 넣으면 서버의 안내 문장이 폼 아래에 뜬다

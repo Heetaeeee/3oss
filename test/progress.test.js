@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { progressPercent, daysLeft, doneShare } from '../src/lib/progress.js';
+import { progressPercent, daysLeft, doneShare, withDescendants } from '../src/lib/progress.js';
 
 const t = (o) => ({ id: 'x', status: 'TODO', assigneeId: null, hours: null, dueDate: null, ...o });
 
@@ -92,4 +92,10 @@ test('주차별 수행률도 상위 작업을 세지 않는다', () => {
 });
 test('세부 작업이 없는 작업은 그대로 센다', () => {
   assert.equal(progressPercent([t({ id: 'p' }), t({ id: 'q', status: 'DONE' })]), 50);
+});
+
+test('작업을 지우면 세부 작업과 그 아래 작업까지 함께 지울 id 로 고른다', () => {
+  const tasks = [t({ id: 'p' }), t({ id: 'c1', parentId: 'p' }), t({ id: 'g', parentId: 'c1' }), t({ id: 'other' })];
+  assert.deepEqual([...withDescendants('p', tasks)].sort(), ['c1', 'g', 'p']);
+  assert.deepEqual([...withDescendants('other', tasks)], ['other']);
 });

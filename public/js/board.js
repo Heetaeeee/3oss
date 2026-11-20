@@ -153,12 +153,30 @@ function taskCard(task, members, tasks) {
     owner ? el('span', { className: 'badge badge--team' }, `담당 ${owner.name}`)
       : el('span', { className: 'badge badge--todo' }, '담당 미정'));
 
+  const remove = el('button', { className: 'btn btn--quiet btn--s', type: 'button', ariaLabel: `${task.title} 삭제` }, '삭제');
+  remove.addEventListener('click', () => {
+    // 서버 withDescendants 와 같은 범위 — 세부 작업의 세부 작업까지 센다
+    const ids = new Set([task.id]);
+    for (let grew = true; grew;) {
+      grew = false;
+      for (const t of tasks) if (ids.has(t.parentId) && !ids.has(t.id)) { ids.add(t.id); grew = true; }
+    }
+    const children = ids.size - 1;
+    // 마지막 세부 작업을 지우면 상위 작업이 일반 작업으로 돌아가 진행률 · 부담률에 다시 들어간다
+    const parent = tasks.find((t) => t.id === task.parentId);
+    const lastChild = parent && !tasks.some((t) => t.parentId === parent.id && !ids.has(t.id));
+    const note = (children > 0 ? `\n세부 작업 ${children}개도 함께 삭제됩니다.` : '')
+      + (lastChild ? `\n'${parent.title}'은(는) 일반 작업으로 돌아가 진행률 · 부담률에 다시 들어갑니다.` : '');
+    if (!confirm(`'${task.title}' 작업을 삭제할까요? 되돌릴 수 없습니다.${note}`)) return;
+    act(remove, error, () => api(`/api/tasks/${task.id}`, { method: 'DELETE' }));
+  });
+
   return el('article', { className: 'card stack' },
     el('div', { className: 'between' }, el('h3', {}, task.title), status),
     parent ? el('p', { className: 'sub' }, `↳ ${parent.title}의 세부 작업`) : null,
     badges,
     el('div', { className: 'slot stack' },
-      el('div', { className: 'row' }, field('담당자', assignee)),
+      el('div', { className: 'between' }, field('담당자', assignee), remove),
       error));
 }
 
