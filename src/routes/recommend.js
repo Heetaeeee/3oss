@@ -34,10 +34,15 @@ export function createRecommendRouter(loadDb = load) {
       });
     }
 
-    const db = loadDb();
+const db = loadDb();
 
-    let newHours = body.hours;
-    let tasks = db.tasks;
+// 추천 대상을 빼기 전에 전체 목록으로 상위 작업을 판별한다.
+const parentIds = new Set(
+  db.tasks.map((task) => task.parentId).filter(Boolean)
+);
+
+let newHours = body.hours;
+let tasks = db.tasks.filter((task) => !parentIds.has(task.id));
 
     if (hasTaskId) {
       const task = db.tasks.find((item) => item.id === body.taskId);
@@ -45,6 +50,12 @@ export function createRecommendRouter(loadDb = load) {
       if (!task) {
         return res.status(404).json({
           error: '작업을 찾을 수 없습니다.'
+        });
+      }
+
+      if (parentIds.has(task.id)) {
+        return res.status(400).json({
+          error: '상위 작업 대신 세부 작업의 담당자를 추천해 주세요.'
         });
       }
 
@@ -62,8 +73,8 @@ export function createRecommendRouter(loadDb = load) {
 
       newHours = task.hours;
 
-      // 대상 작업을 제외해 같은 시간을 두 번 더하지 않는다.
-      tasks = db.tasks.filter((item) => item.id !== task.id);
+      // 상위 작업을 제외한 목록에서 추천 대상도 뺀다.
+      tasks = tasks.filter((item) => item.id !== task.id);
     }
 
     if (
