@@ -157,3 +157,68 @@ test('추천 요청은 작업 데이터와 담당자를 변경하지 않는다',
     assert.deepEqual(db, before);
   });
 });
+
+test('유일한 세부 작업을 재추천해도 상위 작업이 계산에 들어가지 않는다', async () => {
+  await withApi(async ({ db, post }) => {
+    db.tasks = [
+      {
+        id: 'parent',
+        title: '발표 준비',
+        hours: 6,
+        status: 'TODO',
+        assigneeId: 'A'
+      },
+      {
+        id: 'child',
+        parentId: 'parent',
+        title: '자료 제작',
+        hours: 4,
+        status: 'TODO',
+        assigneeId: 'A'
+      }
+    ];
+
+    const before = structuredClone(db);
+    const result = await post({ taskId: 'child' });
+
+    assert.equal(result.status, 200);
+
+    const candidate = result.body.candidates.find(
+      (item) => item.memberId === 'A'
+    );
+
+    assert.equal(candidate.currentLoad, 0);
+    assert.equal(candidate.projectedLoad, 40);
+    assert.deepEqual(db, before);
+  });
+});
+
+test('상위 작업 ID로 추천을 요청하면 400이다', async () => {
+  await withApi(async ({ db, post }) => {
+    db.tasks = [
+      {
+        id: 'parent',
+        title: '발표 준비',
+        hours: 6,
+        status: 'TODO',
+        assigneeId: 'A'
+      },
+      {
+        id: 'child',
+        parentId: 'parent',
+        title: '자료 제작',
+        hours: 4,
+        status: 'TODO',
+        assigneeId: null
+      }
+    ];
+
+    const result = await post({ taskId: 'parent' });
+
+    assert.equal(result.status, 400);
+    assert.equal(
+      result.body.error,
+      '상위 작업 대신 세부 작업의 담당자를 추천해 주세요.'
+    );
+  });
+});
