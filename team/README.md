@@ -72,7 +72,7 @@ flowchart LR
 | **화면** | 부담률 막대(과부하 표시), 담당자 추천 패널(근거 문장 · 예상 부담률 · 배정 버튼) | `public/js/load.js` |
 | **계산 규칙** | 작업 부담률, 담당자 추천(제외 · 동률 규칙), 추천 근거 문장 | `src/lib/load.js` · `explain.js` |
 | **서버 API** | `GET /api/loads`<br/>`POST /api/recommend` | `src/routes/loads.js` · `recommend.js` |
-| **테스트** | 23개 | `test/load.test.js` · `explain.test.js` · `recommend-api.test.js` |
+| **테스트** | 26개 | `test/load.test.js` · `explain.test.js` · `recommend-api.test.js` |
 | **시연** | 새 작업에 담당자 추천 → 근거 문장과 예상 부담률 → 배정 → 막대 변화. 가능한 시간 0인 팀원이 제외되는 것 | |
 
 ### 공용 뼈대 — 기능이 아니라 바닥
@@ -231,7 +231,11 @@ const isParent = (task) => parentIds.has(task.id);
 부담률 · 진행률 · 완료 작업 비중은 **반올림한 정수**로 내려보냅니다.
 담당자 추천 순위는 반올림 전 예상 부담률 → 반올림 전 현재 부담률 → 팀원 등록 순서로 정합니다. 응답에 표시하는 부담률은 정수로 반올림하므로 표시값이 같더라도 추천 순서는 다를 수 있습니다.
 
-`POST /api/recommend`에 완료된 작업의 `taskId`를 보내면 400과 `{ error: '완료된 작업은 담당자 추천 대상이 아닙니다.' }`를 반환합니다. 추천 요청은 작업이나 담당자를 변경하지 않습니다.
+`POST /api/recommend`에 완료된 작업의 `taskId`를 보내면 400과 `{ error: '완료된 작업은 담당자 추천 대상이 아닙니다.' }`를 반환합니다.
+
+세부 작업이 있는 상위 작업의 `taskId`로 `POST /api/recommend`를 요청하면 400과 `{ error: '상위 작업 대신 세부 작업의 담당자를 추천해 주세요.' }`를 반환합니다.
+
+추천 요청은 작업이나 담당자를 변경하지 않습니다.
 
 ## 화면을 나눠 쓰는 법
 
