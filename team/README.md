@@ -48,7 +48,7 @@ flowchart LR
 | **화면** | 팀원 등록 폼 · 목록, 작업 등록 폼 · 작업 보드(상태 · 담당자 · 크기 · 마감일), 진행 현황(진행률 · D-day · 완료 작업 비중) | `public/js/board.js` |
 | **계산 규칙** | 입력값 검사, 진행률, D-day, 완료 작업 비중 | `src/lib/validate.js` · `progress.js` |
 | **서버 API** | `GET · POST · PATCH /api/members`<br/>`GET · POST · PATCH · DELETE /api/tasks`<br/>`GET /api/progress` | `src/routes/members.js` · `tasks.js` · `progress.js` |
-| **테스트** | 21개 | `test/validate.test.js` · `progress.test.js` |
+| **테스트** | 42개 | `test/validate.test.js` · `progress.test.js` · `completed-at.test.js` · `tasks-api.test.js` |
 | **시연** | 팀원 · 작업 등록 → 잘못된 값에 안내 문장 → 완료 처리 → 진행률 · 완료 작업 비중 변화 | |
 
 ### A 김권섭 — 작업 정의 기능
