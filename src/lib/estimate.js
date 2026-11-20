@@ -32,3 +32,17 @@ export function addVersion(history, summary, by, at) {
   if (last && JSON.stringify([last.values, last.reasons]) === JSON.stringify([values, reasons])) return history;
   return [...history, { version: history.length + 1, by, at, values, reasons, median }];
 }
+
+// 팀원이 빠진 뒤 작업의 공개 상태를 다시 본다. C 의 DELETE /api/members/:id 가 남은 팀원 id 로 작업마다 부른다.
+// 추정은 제출할 때만 공개를 기록하므로, 삭제로 "남은 전원이 냄" 이 채워지면 여기서 공개 기록과 ver 1 을 남긴다.
+// 그러지 않으면 화면엔 공개돼 보여도 기록이 없어, 다음에 팀원이 늘면 다시 가려지고 수정 기록에 ver 1 이 빠진다.
+// 삭제된 팀원이 낸 추정은 지우지 않는다 — memberIds 에 없으니 계산에서만 빠진다.
+// → 작업에 그대로 덮어쓸 { estimatesRevealed, estimateHistory }. 원본 작업은 바꾸지 않는다
+export function revealAfterMemberRemoved(task, memberIds, at) {
+  const estimatesRevealed = Boolean(task.estimatesRevealed);
+  const estimateHistory = task.estimateHistory ?? [];
+  if (estimatesRevealed) return { estimatesRevealed, estimateHistory };
+  const summary = estimateSummary(task.estimates ?? {}, memberIds);
+  if (!summary.revealed) return { estimatesRevealed, estimateHistory };
+  return { estimatesRevealed: true, estimateHistory: addVersion(estimateHistory, summary, null, at) };
+}
