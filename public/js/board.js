@@ -211,12 +211,13 @@ function assignedHours(members, counted) {
   });
 }
 
-async function drawProgress(slot, members, tasks) {
+async function drawProgress(slot, members, tasks, isLatest) {
   // 서버 progress.js 와 같은 기준: 다른 작업이 parentId 로 가리키는 상위 작업은 세지 않는다
   const parentIds = new Set(tasks.map((t) => t.parentId).filter(Boolean));
   const counted = tasks.filter((t) => !parentIds.has(t.id));
   // 주차별 조회가 실패해도 진행률 · 완료 작업 비중은 보이게 따로 받는다
   const [p, weekly] = await Promise.all([api('/api/progress'), drawWeekly(counted)]);
+  if (!isLatest()) return;
   const done = counted.filter((t) => t.status === 'DONE').length;
   const shares = p.doneHoursTotal === 0
     ? [el('p', { className: 'sub' }, done === 0 ? '아직 완료된 작업이 없습니다.' : '완료한 작업의 확정 시간이 아직 없습니다.')]
@@ -236,13 +237,18 @@ async function drawProgress(slot, members, tasks) {
     el('p', { className: 'sub' }, '그 주에 마감인 작업 중 완료한 비율입니다.'));
 }
 
+// 진행 현황은 'data' 뒤에 따로 API 를 기다리므로, 먼저 시작한 요청이 늦게 끝나 최신 화면을 덮지 않게 마지막 것만 그린다
+let progressSeq = 0;
+
 document.addEventListener('data', async (e) => {
   const { members, tasks } = e.detail;
   if (memberList) drawMembers(members);
   if ($('#tasks')) drawTasks($('#tasks'), members, tasks);
   if ($('#progress')) {
-    await drawProgress($('#progress'), members, tasks).catch((error) => {
-      fill($('#progress'), el('p', { className: 'msg-error', role: 'alert' }, error.message));
+    const mine = ++progressSeq;
+    const isLatest = () => mine === progressSeq;
+    await drawProgress($('#progress'), members, tasks, isLatest).catch((error) => {
+      if (isLatest()) fill($('#progress'), el('p', { className: 'msg-error', role: 'alert' }, error.message));
     });
   }
 });
