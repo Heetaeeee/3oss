@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { estimateSummary, addVersion } from '../src/lib/estimate.js';
+import { estimateSummary, addVersion, revealAfterMemberRemoved } from '../src/lib/estimate.js';
 
 const e = (hours, reason = "") => ({ hours, reason });
 
@@ -76,4 +76,39 @@ test('공개 뒤 수정하면 앞 버전을 두고 수정한 사람의 버전을
 test('공개 뒤 같은 값을 다시 내면 버전을 쌓지 않는다', () => {
   const v1 = addVersion([], estimateSummary({ m1: e(3), m2: e(8) }, ['m1', 'm2']), null, 'T1');
   assert.equal(addVersion(v1, estimateSummary({ m1: e(3), m2: e(8) }, ['m1', 'm2'], true), 'm2', 'T2'), v1);
+});
+
+// 팀원 삭제 뒤 공개 처리 — C 의 DELETE /api/members/:id 가 작업마다 부른다
+const task = (estimates, extra = {}) => ({ id: 't1', estimates, estimatesRevealed: false, estimateHistory: [], ...extra });
+
+test('남은 팀원이 모두 냈으면 그 자리에서 공개 기록과 ver 1 을 남긴다', () => {
+  const t = task({ m1: e(3), m2: e(5, '근거') });          // m3 이 안 낸 채로 삭제됨
+  assert.deepEqual(revealAfterMemberRemoved(t, ['m1', 'm2'], 'T1'), {
+    estimatesRevealed: true,
+    estimateHistory: [{ version: 1, by: null, at: 'T1', values: { m1: 3, m2: 5 }, reasons: { m2: '근거' }, median: 4 }],
+  });
+});
+test('아직 안 낸 팀원이 남아 있으면 바꾸지 않는다', () => {
+  const t = task({ m1: e(3) });
+  assert.deepEqual(revealAfterMemberRemoved(t, ['m1', 'm2'], 'T1'), { estimatesRevealed: false, estimateHistory: [] });
+});
+test('이미 공개된 작업은 버전을 더 쌓지 않는다', () => {
+  const v1 = [{ version: 1, by: null, at: 'T0', values: { m1: 3, m2: 5, m3: 8 }, reasons: {}, median: 5 }];
+  const t = task({ m1: e(3), m2: e(5), m3: e(8) }, { estimatesRevealed: true, estimateHistory: v1 });
+  assert.deepEqual(revealAfterMemberRemoved(t, ['m1', 'm2'], 'T1'), { estimatesRevealed: true, estimateHistory: v1 });
+});
+test('삭제된 팀원이 낸 값은 공개 값에 넣지 않는다 (추정 자체는 지우지 않음)', () => {
+  const t = task({ m1: e(3), m2: e(5), gone: e(99) });
+  const r = revealAfterMemberRemoved(t, ['m1', 'm2'], 'T1');
+  assert.deepEqual(r.estimateHistory[0].values, { m1: 3, m2: 5 });
+  assert.equal('gone' in t.estimates, true);
+});
+test('팀원이 아무도 남지 않으면 공개하지 않는다', () => {
+  const t = task({ m1: e(3) });
+  assert.deepEqual(revealAfterMemberRemoved(t, [], 'T1'), { estimatesRevealed: false, estimateHistory: [] });
+});
+test('추정이 없는 작업 · 원본 작업은 건드리지 않는다', () => {
+  const t = { id: 't2' };
+  assert.deepEqual(revealAfterMemberRemoved(t, ['m1'], 'T1'), { estimatesRevealed: false, estimateHistory: [] });
+  assert.deepEqual(t, { id: 't2' });
 });
