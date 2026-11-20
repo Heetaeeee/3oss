@@ -146,12 +146,21 @@ function taskCard(task, members, tasks) {
     owner ? el('span', { className: 'badge badge--team' }, `담당 ${owner.name}`)
       : el('span', { className: 'badge badge--todo' }, '담당 미정'));
 
+  const remove = el('button', { className: 'btn btn--quiet btn--s', type: 'button', ariaLabel: `${task.title} 삭제` }, '삭제');
+  remove.addEventListener('click', () => {
+    // shortcut: 바로 아래 세부 작업만 센다 (세분화는 한 단계). 여러 단계로 나누게 되면 서버의 withDescendants 와 같게
+    const children = tasks.filter((t) => t.parentId === task.id).length;
+    const note = children > 0 ? `\n세부 작업 ${children}개도 함께 삭제됩니다.` : '';
+    if (!confirm(`'${task.title}' 작업을 삭제할까요? 되돌릴 수 없습니다.${note}`)) return;
+    act(remove, error, () => api(`/api/tasks/${task.id}`, { method: 'DELETE' }));
+  });
+
   return el('article', { className: 'card stack' },
     el('div', { className: 'between' }, el('h3', {}, task.title), status),
     parent ? el('p', { className: 'sub' }, `↳ ${parent.title}의 세부 작업`) : null,
     badges,
     el('div', { className: 'slot stack' },
-      el('div', { className: 'row' }, field('담당자', assignee)),
+      el('div', { className: 'between' }, field('담당자', assignee), remove),
       error));
 }
 

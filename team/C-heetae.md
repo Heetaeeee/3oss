@@ -6,7 +6,7 @@
 |---|---|
 | **화면** | 팀원 등록, 작업 보드, 진행률 · D-day · 완료 작업 비중 — `public/js/board.js` |
 | **계산 규칙** | 입력값 검사(`validate`), 진행률 · D-day · 완료 작업 비중(`progress`) |
-| **서버 API** | `GET · POST · PATCH /api/members`, `GET · POST · PATCH /api/tasks`, `GET /api/progress` |
+| **서버 API** | `GET · POST · PATCH /api/members`, `GET · POST · PATCH · DELETE /api/tasks`, `GET /api/progress` |
 | **공용** | 홈과 기능별 페이지 `public/index.html` · `board.html` · `sizing.html` · `load.html` 의 틀, `public/js/api.js` (`style.css` 는 김권섭) |
 
 **안 맡는 것:** 부담률 · 담당자 추천(박지호), AI 세분화 · 블라인드 추정(김권섭)

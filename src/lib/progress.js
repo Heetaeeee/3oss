@@ -12,6 +12,16 @@ export function withoutParents(tasks) {
   return tasks.filter((t) => !parentIds.has(t.id));
 }
 
+// 작업 삭제 때 함께 지울 id — 자기 자신과 그 아래 세부 작업 전부 (세부 작업의 세부 작업까지)
+export function withDescendants(id, tasks) {
+  const ids = new Set([id]);
+  for (let grew = true; grew;) {
+    grew = false;
+    for (const t of tasks) if (ids.has(t.parentId) && !ids.has(t.id)) { ids.add(t.id); grew = true; }
+  }
+  return ids;
+}
+
 export function progressPercent(allTasks) {
   const tasks = withoutParents(allTasks);
   if (tasks.length === 0) return 0;

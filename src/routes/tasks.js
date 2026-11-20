@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { load, save, newId } from '../lib/store.js';
 import { validateNewTask, validateTaskPatch } from '../lib/validate.js';
-import { nextCompletedAt } from '../lib/progress.js';
+import { nextCompletedAt, withDescendants } from '../lib/progress.js';
 
 const router = Router();
 
@@ -36,6 +36,16 @@ router.patch('/:id', (req, res) => {
   Object.assign(task, v.value);
   save(db);
   res.json(publicTask(task));
+});
+
+// 상위 작업을 지우면 세부 작업도 함께 지운다. 남겨 두면 parentId 가 없는 작업을 가리킨다
+router.delete('/:id', (req, res) => {
+  const db = load();
+  if (!db.tasks.some((t) => t.id === req.params.id)) return res.status(404).json({ error: '작업을 찾을 수 없습니다.' });
+  const ids = withDescendants(req.params.id, db.tasks);
+  db.tasks = db.tasks.filter((t) => !ids.has(t.id));
+  save(db);
+  res.json({ deleted: [...ids] });
 });
 
 export default router;
