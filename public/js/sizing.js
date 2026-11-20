@@ -190,7 +190,7 @@ function revealedSlot(task, members, summary) {
     historyList(members, summary.history),
     // 이미 낸 사람은 고치고(버전이 쌓인다), 공개 뒤 들어온 사람은 여기서 처음 낸다
     estimateForm(task, members, { label: notYet.length ? '추정 제출' : '추정 고치기', primary: false, preferIds: notYet }),
-    // 확정칸은 공개된 뒤에만 — C 의 PATCH 는 공개 전에도 hours 를 받으므로 블라인드를 지키는 곳은 여기다
+    // 확정칸은 공개된 뒤에만 — 서버(C 의 PATCH, P4)도 공개 전 hours 를 400 으로 거절하고, 화면은 애초에 확정칸을 그리지 않는다
     confirmForm(task, summary.median));
 }
 
