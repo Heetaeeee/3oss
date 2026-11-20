@@ -1,6 +1,11 @@
 export function currentHours(memberId, tasks) {
+  const parentIds = new Set(
+    tasks.map((task) => task.parentId).filter(Boolean)
+  );
+
   return tasks
     .filter((task) =>
+      !parentIds.has(task.id) &&
       task.assigneeId === memberId &&
       task.status !== 'DONE' &&
       typeof task.hours === 'number'

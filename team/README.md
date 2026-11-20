@@ -48,7 +48,7 @@ flowchart LR
 | **화면** | 팀원 등록 폼 · 목록, 작업 등록 폼 · 작업 보드(상태 · 담당자 · 크기 · 마감일), 진행 현황(진행률 · D-day · 완료 작업 비중) | `public/js/board.js` |
 | **계산 규칙** | 입력값 검사, 진행률, D-day, 완료 작업 비중 | `src/lib/validate.js` · `progress.js` |
 | **서버 API** | `GET · POST · PATCH /api/members`<br/>`GET · POST · PATCH · DELETE /api/tasks`<br/>`GET /api/progress` | `src/routes/members.js` · `tasks.js` · `progress.js` |
-| **테스트** | 42개 | `test/validate.test.js` · `progress.test.js` · `completed-at.test.js` · `tasks-api.test.js` |
+| **테스트** | 44개 | `test/validate.test.js` · `progress.test.js` · `completed-at.test.js` · `tasks-api.test.js` |
 | **시연** | 팀원 · 작업 등록 → 잘못된 값에 안내 문장 → 완료 처리 → 진행률 · 완료 작업 비중 변화 | |
 
 ### A 김권섭 — 작업 정의 기능
@@ -72,7 +72,7 @@ flowchart LR
 | **화면** | 부담률 막대(과부하 표시), 담당자 추천 패널(근거 문장 · 예상 부담률 · 배정 버튼) | `public/js/load.js` |
 | **계산 규칙** | 작업 부담률, 담당자 추천(제외 · 동률 규칙), 추천 근거 문장 | `src/lib/load.js` · `explain.js` |
 | **서버 API** | `GET /api/loads`<br/>`POST /api/recommend` | `src/routes/loads.js` · `recommend.js` |
-| **테스트** | 23개 | `test/load.test.js` · `explain.test.js` · `recommend-api.test.js` |
+| **테스트** | 26개 | `test/load.test.js` · `explain.test.js` · `recommend-api.test.js` |
 | **시연** | 새 작업에 담당자 추천 → 근거 문장과 예상 부담률 → 배정 → 막대 변화. 가능한 시간 0인 팀원이 제외되는 것 | |
 
 ### 공용 뼈대 — 기능이 아니라 바닥
@@ -166,11 +166,11 @@ const isParent = (task) => parentIds.has(task.id);
 | 기능 | 메서드 · 경로 | 요청 본문 | 응답 |
 |---|---|---|---|
 | C | `GET /api/members` | — | `Member[]` |
-| C | `POST /api/members` | `{ name, availableHours }` | `Member` (201) |
-| C | `PATCH /api/members/:id` | `{ name?, availableHours? }` | `Member` |
+| C | `POST /api/members` | `{ name, availableHours }` | `Member` (201) — 같은 이름이 있으면 400 `이미 같은 이름의 팀원이 있습니다.` |
+| C | `PATCH /api/members/:id` | `{ name?, availableHours? }` | `Member` — 다른 팀원과 같은 이름이면 400 |
 | C | `GET /api/tasks` | — | `Task[]` (`estimates` · `estimateHistory` 필드 없이) |
 | C | `POST /api/tasks` | `{ title, dueDate?, parentId? }` | `Task` (201) |
-| C | `PATCH /api/tasks/:id` | `{ status?, assigneeId?, hours?, dueDate?, title? }` | `Task` |
+| C | `PATCH /api/tasks/:id` | `{ status?, assigneeId?, hours?, dueDate?, title? }` | `Task` — 추정 공개 전에 `hours` 를 숫자로 보내면 400 (`null` 로 되돌리기는 허용) |
 | C | `DELETE /api/tasks/:id` | — | `{ deleted: [id, …] }` — 세부 작업까지 함께 지움, 없으면 404 |
 | C | `GET /api/progress` | — | 아래 |
 | A | `POST /api/breakdown` | `{ title }` | `{ subtasks: string[], source: 'ai' \| 'fallback' }` |
@@ -232,7 +232,11 @@ const isParent = (task) => parentIds.has(task.id);
 부담률 · 진행률 · 완료 작업 비중은 **반올림한 정수**로 내려보냅니다.
 담당자 추천 순위는 반올림 전 예상 부담률 → 반올림 전 현재 부담률 → 팀원 등록 순서로 정합니다. 응답에 표시하는 부담률은 정수로 반올림하므로 표시값이 같더라도 추천 순서는 다를 수 있습니다.
 
-`POST /api/recommend`에 완료된 작업의 `taskId`를 보내면 400과 `{ error: '완료된 작업은 담당자 추천 대상이 아닙니다.' }`를 반환합니다. 추천 요청은 작업이나 담당자를 변경하지 않습니다.
+`POST /api/recommend`에 완료된 작업의 `taskId`를 보내면 400과 `{ error: '완료된 작업은 담당자 추천 대상이 아닙니다.' }`를 반환합니다.
+
+세부 작업이 있는 상위 작업의 `taskId`로 `POST /api/recommend`를 요청하면 400과 `{ error: '상위 작업 대신 세부 작업의 담당자를 추천해 주세요.' }`를 반환합니다.
+
+추천 요청은 작업이나 담당자를 변경하지 않습니다.
 
 ## 화면을 나눠 쓰는 법
 

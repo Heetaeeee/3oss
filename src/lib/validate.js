@@ -23,11 +23,16 @@ function check(body, rules, partial) {
   return { ok: true, value };
 }
 
-export function validateMember(body, { partial = false } = {}) {
-  return check(body, {
+// takenNames: 이미 있는 다른 팀원 이름 — 팀원 등록 · 이름 수정 · (입장 코드) 입장이 모두 이 함수로 같은 이름을 막는다
+export function validateMember(body, { partial = false, takenNames = [] } = {}) {
+  const v = check(body, {
     name: [text(20), '이름은 1~20자로 입력해 주세요.', true],
     availableHours: [(v) => isNum(v) && v >= 0 && v <= 1000, '가능한 시간은 0 이상의 숫자로 입력해 주세요.', true],
   }, partial);
+  if (v.ok && 'name' in v.value && takenNames.some((n) => n.trim() === v.value.name)) {
+    return { ok: false, error: '이미 같은 이름의 팀원이 있습니다.' };
+  }
+  return v;
 }
 
 export function validateTask(body, { partial = false, memberIds = [], taskIds = [] } = {}) {
@@ -52,6 +57,11 @@ export function validateNewTask(body, { taskIds = [] } = {}) {
 }
 
 // PATCH /api/tasks/:id — parentId 는 바꾸지 못한다 (서로를 상위 작업으로 두는 순환을 막으려고)
-export function validateTaskPatch(body, { memberIds = [] } = {}) {
-  return validateTask(pick(body, ['status', 'assigneeId', 'hours', 'dueDate', 'title']), { partial: true, memberIds });
+// revealed: 그 작업의 추정이 공개됐는지. 공개 전에 크기를 정하면 블라인드 추정을 건너뛰게 된다 (null 로 되돌리기는 허용)
+export function validateTaskPatch(body, { memberIds = [], revealed = false } = {}) {
+  const v = validateTask(pick(body, ['status', 'assigneeId', 'hours', 'dueDate', 'title']), { partial: true, memberIds });
+  if (v.ok && v.value.hours != null && !revealed) {
+    return { ok: false, error: '작업 크기는 추정이 공개된 뒤에 확정할 수 있습니다.' };
+  }
+  return v;
 }

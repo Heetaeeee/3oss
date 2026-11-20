@@ -31,7 +31,7 @@ export function createTasksRouter(loadDb = load, saveDb = save) {
     const db = loadDb();
     const task = db.tasks.find((t) => t.id === req.params.id);
     if (!task) return res.status(404).json({ error: '작업을 찾을 수 없습니다.' });
-    const v = validateTaskPatch(req.body, { memberIds: db.members.map((m) => m.id) });
+    const v = validateTaskPatch(req.body, { memberIds: db.members.map((m) => m.id), revealed: Boolean(task.estimatesRevealed) });
     if (!v.ok) return res.status(400).json({ error: v.error });
     // 주차별 수행률 · 지난주 요약용
     task.completedAt = nextCompletedAt(task.status, v.value.status, task.completedAt, new Date().toISOString());
