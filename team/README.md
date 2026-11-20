@@ -166,11 +166,11 @@ const isParent = (task) => parentIds.has(task.id);
 | 기능 | 메서드 · 경로 | 요청 본문 | 응답 |
 |---|---|---|---|
 | C | `GET /api/members` | — | `Member[]` |
-| C | `POST /api/members` | `{ name, availableHours }` | `Member` (201) |
-| C | `PATCH /api/members/:id` | `{ name?, availableHours? }` | `Member` |
+| C | `POST /api/members` | `{ name, availableHours }` | `Member` (201) — 같은 이름이 있으면 400 `이미 같은 이름의 팀원이 있습니다.` |
+| C | `PATCH /api/members/:id` | `{ name?, availableHours? }` | `Member` — 다른 팀원과 같은 이름이면 400 |
 | C | `GET /api/tasks` | — | `Task[]` (`estimates` · `estimateHistory` 필드 없이) |
 | C | `POST /api/tasks` | `{ title, dueDate?, parentId? }` | `Task` (201) |
-| C | `PATCH /api/tasks/:id` | `{ status?, assigneeId?, hours?, dueDate?, title? }` | `Task` |
+| C | `PATCH /api/tasks/:id` | `{ status?, assigneeId?, hours?, dueDate?, title? }` | `Task` — 추정 공개 전에 `hours` 를 숫자로 보내면 400 (`null` 로 되돌리기는 허용) |
 | C | `GET /api/progress` | — | 아래 |
 | A | `POST /api/breakdown` | `{ title }` | `{ subtasks: string[], source: 'ai' \| 'fallback' }` |
 | A | `POST /api/tasks/:id/estimates` | `{ memberId, hours, reason? }` | `{ taskId, estimate }` |
