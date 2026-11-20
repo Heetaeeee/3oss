@@ -34,15 +34,15 @@ export function createRecommendRouter(loadDb = load) {
       });
     }
 
-const db = loadDb();
+    const db = loadDb();
 
-// 추천 대상을 빼기 전에 전체 목록으로 상위 작업을 판별한다.
-const parentIds = new Set(
-  db.tasks.map((task) => task.parentId).filter(Boolean)
-);
+    // 추천 대상을 빼기 전에 전체 목록으로 상위 작업을 판별한다.
+    const parentIds = new Set(
+      db.tasks.map((task) => task.parentId).filter(Boolean)
+    );
 
-let newHours = body.hours;
-let tasks = db.tasks.filter((task) => !parentIds.has(task.id));
+    let newHours = body.hours;
+    let tasks = db.tasks.filter((task) => !parentIds.has(task.id));
 
     if (hasTaskId) {
       const task = db.tasks.find((item) => item.id === body.taskId);
