@@ -1,5 +1,6 @@
 import express from 'express';
 
+import { createRoomContext } from './middleware/room-context.js';
 import membersRouter from './routes/members.js';
 import tasksRouter from './routes/tasks.js';
 import recommendRouter from './routes/recommend.js';
@@ -8,11 +9,24 @@ import progressRouter from './routes/progress.js';
 import estimatesRouter from './routes/estimates.js';
 import breakdownRouter from './routes/breakdown.js';
 import weeklyRouter from './routes/weekly.js';
+import roomsRouter from './routes/rooms.js';
 
 const app = express();
 
 app.use(express.json({ limit: '10kb'}));
 app.use(express.static('public'));
+
+// 입장 전에도 화면에서 확인할 수 있는 공개 설정이다.
+app.get('/api/config', (req, res) => {
+  res.json({
+    roomsEnabled: process.env.ROOMS_ENABLED === '1'
+  });
+});
+
+app.use('/api/rooms', roomsRouter);
+
+// 설정 조회와 방 입장 관련 경로 다음에 검사한다.
+app.use('/api', createRoomContext());
 
 app.use('/api/members', membersRouter);
 app.use('/api/tasks', tasksRouter);

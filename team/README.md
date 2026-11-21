@@ -93,7 +93,7 @@ flowchart LR
 
 | 만나는 곳 | 규칙 |
 |---|---|
-| 저장 | 세 기능 모두 B의 `store.load()` / `store.save()` 로 같은 `data/db.json` 을 읽고 씁니다 |
+| 저장 | 서버의 `data/db.json`에 방별로 저장합니다. 전환 중인 기존 라우터는 `load()` · `save()`로 기본 방을 사용하고, 전환한 라우터는 `loadRoom(req.roomCode)` · `saveRoom(req.roomCode, db)`를 사용합니다. 방 기능 전체 전환 전에는 `ROOMS_ENABLED`를 켜지 않습니다 |
 | 작업 크기 `hours` | A의 추정 화면이 확정 → C의 `PATCH /api/tasks/:id { hours }` 호출 |
 | 담당자 `assigneeId` | B의 추천 화면이 배정 → C의 `PATCH /api/tasks/:id { assigneeId }` 호출 |
 | 세부 작업 등록 | A의 세분화 화면이 고른 제목 → C의 `POST /api/tasks { title, parentId }` 호출 |
@@ -101,6 +101,7 @@ flowchart LR
 | 화면 갱신 | 누구든 데이터를 바꾸면 `refresh()` → `'data'` 이벤트 → 각자 자기 API를 불러 자기 자리를 다시 그립니다 |
 | 상위 작업 | 아래 "상위 작업은 세지 않습니다" — 세 기능이 같은 기준으로 뺍니다 |
 | 팀원 삭제와 추정 공개 | **예외 — A 의 함수를 C 가 부릅니다.** C 의 `DELETE /api/members/:id` 가 팀원을 지운 뒤, 작업마다 A 의 `revealAfterMemberRemoved(task, 남은 팀원 id, 지금)` 를 불러 결과(`estimatesRevealed` · `estimateHistory`)를 덮어씁니다. 삭제로 "남은 전원이 냄" 이 채워진 작업에 공개 기록과 ver 1 을 남기기 위해서입니다 (아래 코드) |
+| 정원 변경과 추정 공개 | **예외 — B가 A의 공개 처리 함수를 재사용합니다.** 정원 수정 후 등록 인원이 정원과 같을 때만 `revealAfterMemberRemoved()`로 작업별 공개 조건을 다시 검사하고 기록을 저장합니다 |
 
 ### 팀원을 지울 때 추정 공개 처리
 
@@ -168,6 +169,73 @@ const isParent = (task) => parentIds.has(task.id);
 
 **이 형태와 아래 API 형식을 바꿀 때는 반드시 먼저 공유합니다.**
 
+### 방별 저장 구조와 전환 상태
+
+방 기능의 서버 뼈대는 구현됐지만, 기존 기능 API와 화면의 방별 전환은 진행 전입니다. **전체 전환·통합 검증이 끝날 때까지 `ROOMS_ENABLED`는 0 또는 미설정으로 유지합니다.**
+
+```js
+{
+  schemaVersion: 1,
+  defaultRoom: 'ABC234',
+  rooms: {
+    ABC234: {
+      name: '기존 프로젝트',
+      size: 3,
+      demo: false,
+      members: [],
+      tasks: [],
+      createdAt: '2026-11-21T00:00:00.000Z'
+    }
+  }
+}
+```
+
+- 방 코드는 영문 대문자·숫자 6자리이며 `0`, `O`, `1`, `I`를 제외합니다. 사용자 입력의 앞뒤 공백과 소문자는 정리합니다.
+- 방 이름은 공백 제거 후 1~50자, 정원은 1 이상의 안전한 정수입니다.
+- 최초 입장은 이름만 받습니다. 팀원 ID는 서버가 생성하고, 가능한 시간은 0으로 시작합니다.
+- 같은 방의 중복 이름과 정원 초과 입장은 거절합니다. 서로 다른 방에서는 같은 이름을 사용할 수 있습니다.
+- 기존 팀원으로 재입장하는 화면·브라우저 저장 처리는 이번 서버 뼈대에 포함되지 않습니다.
+- 방 코드는 공유 공간을 선택하는 수단이며, 개인 신원이나 방장 권한을 인증하지 않습니다.
+
+#### 저장소 함수
+
+| 함수 | 동작 |
+|---|---|
+| `load()` | 기본 방의 `{ members, tasks }` 반환 |
+| `save(db)` | 기본 방의 팀원·작업만 저장하고 방 정보와 다른 방은 보존 |
+| `getDefaultRoomCode()` | 기본 방 코드 반환 |
+| `loadRoom(code)` | 방 정보와 팀원·작업 반환. 잘못되거나 없는 코드는 `null` |
+| `saveRoom(code, room)` | 기존 방을 저장. 생략된 방 정보와 다른 방은 보존. 없는 방은 오류 |
+| `createRoom({ name, size })` | 새 방을 저장하고 `{ code, ...room }` 반환 |
+| `createStore(filePath)` | 테스트용 독립 저장소 생성 |
+
+저장 위치는 `DATA_DIR`을 따르며, 미설정·빈 값이면 기존 프로젝트의 `data/`를 사용합니다.
+
+기존 `{ members, tasks }` 파일을 처음 읽을 때 원본을 같은 폴더의 `db.json.before-rooms-<고유값>.bak`으로 백업한 후 기본 방으로 이전합니다. 팀원·작업의 기존 필드는 보존합니다. 이미 이전된 파일은 다시 이전하지 않으며, 잘못된 JSON이나 구조는 덮어쓰지 않습니다.
+
+#### 방 코드 검사와 활성화
+
+- `ROOMS_ENABLED=1`일 때만 방 API가 동작합니다. 꺼져 있으면 방 API는 404를 반환합니다.
+- `GET /api/config`는 스위치와 관계없이 `{ roomsEnabled: boolean }`을 반환합니다.
+- 설정 조회와 방 생성·조회·입장은 공용 방 코드 검사보다 먼저 처리합니다.
+- 정원 수정은 `X-Room-Code` 헤더와 URL의 방 코드가 일치해야 합니다.
+- 기존 기능 API 앞의 공용 미들웨어는 켜진 상태에서 헤더를 검사하고 `req.roomCode`를 설정합니다. 헤더 누락·형식 오류는 400, 없는 방은 404입니다.
+- 꺼진 상태에서는 방 코드 헤더를 무시하고 `req.roomCode`를 기본 방으로 설정합니다.
+
+**주의:** 미들웨어를 통과한다고 기존 API의 데이터가 자동으로 방별 분리되는 것은 아닙니다. 각 라우터의 저장소 호출을 전환해야 합니다.
+
+#### 각 담당자의 후속 작업
+
+| 담당 | 후속 작업 |
+|---|---|
+| A | 추정·세분화 라우터의 방별 전환, 정원을 반영한 최초 공개 조건, 입장 화면 |
+| B | 부담률·추천 라우터의 방별 전환, 전체 전환 후 스위치 활성화·통합 검증 |
+| C | 팀원·작업·진행률·주차별 라우터의 방별 전환, 공용 화면의 방 코드 전달·참여 정보 관리 |
+
+정원 변경 API는 등록 인원이 새 정원과 같을 때 공개 조건을 재검사합니다. 정원 미충족 상태의 추정 제출·조회 차단은 A의 후속 전환에서 연결해야 합니다.
+
+기존 라우터의 테스트용 저장소 주입 방식도 새 방별 호출에 맞춰 함께 수정합니다.
+
 ## API 형식
 
 오류 응답은 `{ "error": "한국어 안내 문장" }` 형식으로 반환합니다.
@@ -183,6 +251,11 @@ const isParent = (task) => parentIds.has(task.id);
 
 | 기능 | 메서드 · 경로 | 요청 본문 | 응답 |
 |---|---|---|---|
+| 공용 | `GET /api/config` | — | `{ roomsEnabled: boolean }` |
+| B | `POST /api/rooms` | `{ name, size }` | `{ code, name, size }` (201) |
+| B | `GET /api/rooms/:code` | — | `{ code, name, size, memberCount }` |
+| B | `POST /api/rooms/:code/join` | `{ name }` | `Member` (201). 가능한 시간 0, 중복 이름·정원 초과는 400 |
+| B | `PATCH /api/rooms/:code` | `{ size }` | `{ code, name, size, memberCount }`. 현재 인원보다 작은 정원은 400. 일치하는 `X-Room-Code` 헤더 필요 |
 | C | `GET /api/members` | — | `Member[]` |
 | C | `POST /api/members` | `{ name, availableHours }` | `Member` (201) — 같은 이름이 있으면 400 `이미 같은 이름의 팀원이 있습니다.` |
 | C | `PATCH /api/members/:id` | `{ name?, availableHours? }` | `Member` — 다른 팀원과 같은 이름이면 400 |
@@ -427,6 +500,7 @@ completedAt: '2026-11-17T10:00:00.000Z'
 | A 작업 정의 | `src/lib/breakdown.js` · `estimate.js` · `llm.js`<br/>`src/routes/breakdown.js` · `estimates.js`<br/>`public/js/sizing.js`<br/>`test/breakdown.test.js` · `estimate.test.js` |
 | B 분배 | `src/lib/load.js` · `explain.js`<br/>`src/routes/loads.js` · `recommend.js`<br/>`public/js/load.js`<br/>`test/load.test.js` · `explain.test.js` |
 | 서버 뼈대 (B) | `package.json` · `server.js` · `src/app.js` · `src/lib/store.js` · `.env.example` |
+| 방 서버 뼈대 (B) | `src/lib/room.js` · `src/routes/rooms.js` · `src/middleware/room-context.js`<br/>`test/room.test.js` · `store.test.js` · `rooms-api.test.js` · `room-context.test.js` |
 | 화면 뼈대 (C) | `public/index.html` · `board.html` · `sizing.html` · `load.html` · `public/js/api.js` |
 | 공용 스타일 (A) | `public/style.css` · `team/DESIGN.md` · `team/design-mockup.html` |
 
@@ -434,6 +508,8 @@ completedAt: '2026-11-17T10:00:00.000Z'
 
 ## 테스트
 
-**계산과 검사가 걸린 순수 함수만** Node 내장 테스트 러너로 씁니다. 화면과 라우트 연결은 `npm start` 후 브라우저로 확인합니다.
+계산·입력 검사 순수 함수와 저장소·API·공용 미들웨어를 Node 내장 테스트 러너로 검증합니다. 저장소·API 테스트는 임시 폴더와 별도 서버를 사용하며 실제 데이터를 변경하지 않습니다. 화면 동작은 별도로 브라우저에서 확인합니다.
+
+방 서버 뼈대 테스트는 44개입니다 — 방 규칙·변환 12개, 저장소 7개, 방 API 18개, 공용 방 코드 검사 7개. 기존 기능 테스트 108개와 합쳐 전체 152개입니다.
 
 각 지침서에 통과해야 할 테스트 케이스가 그대로 적혀 있습니다. **테스트를 먼저 쓰고 실패를 확인한 뒤 구현하세요.**
