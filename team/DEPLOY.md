@@ -6,7 +6,7 @@
 - **계획 · 이유:** [STATUS.md](STATUS.md) 6장 — 왜 AWS + Docker 인지, 언제 무엇을 하는지
 - **참고한 실제 사례:** 7조가 같은 조건(Express · JSON 파일 저장 · 자동 배포 금지)으로 배포한 [docs/deploy.md](https://github.com/cjs1004ounds/oss-teamproject/blob/main/docs/deploy.md)
 
-> **주의 — 아직 아무도 이 순서대로 실제로 올려 보지 않았습니다.** 명령과 파일은 지금 `main` 의 코드(`server.js` · `store.js` · `package.json` · `.env.example`)에 맞춰 썼지만, 1장의 `Dockerfile` 도 아직 빌드해 보지 않았습니다. 따라 하다가 다른 점을 찾으면 **이 문서를 고쳐 주세요.** AWS 화면의 메뉴 이름은 바뀔 수 있어서 "무엇을 만드는지" 위주로 적었습니다.
+> **진행 상황 (11/21)** — **1장(코드 준비)은 #52 로 `main` 에 들어갔습니다** (`DATA_DIR` · `Dockerfile` · `.dockerignore`, 이 문서와 같은 내용). 2장부터(내 컴퓨터 Docker 확인 → AWS)는 아직 아무도 실제로 해 보지 않았습니다. 따라 하다가 다른 점을 찾으면 **이 문서를 고쳐 주세요.** AWS 화면의 메뉴 이름은 바뀔 수 있어서 "무엇을 만드는지" 위주로 적었습니다.
 
 ---
 
@@ -70,7 +70,7 @@
 
 ---
 
-## 1. 코드 준비 (내 컴퓨터, 한 번만)
+## 1. 코드 준비 (내 컴퓨터, 한 번만) — ✅ #52 로 완료
 
 브랜치를 하나 따서 PR 로 올립니다. 예: `jiho/docker`
 
