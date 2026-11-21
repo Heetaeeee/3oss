@@ -4,6 +4,7 @@ import { api, refresh } from './api.js';
 
 const slot = document.querySelector('#sizing');
 const LAST_MEMBER = 'sizing:lastMember';
+const COLLAPSED = 'sizing:collapsed'; // 접어 둔 큰 작업 묶음 id 목록 — 다시 그리거나 새로고침해도 접힌 채로
 
 // el('p', { className: 'sub' }, '글자', 다른요소) — 문자열 자식은 글자로만 들어간다
 function el(tag, props = {}, ...children) {
@@ -59,10 +60,19 @@ function rememberMember(id) {
   try { localStorage.setItem(LAST_MEMBER, id); } catch { /* 저장 못 해도 고르기만 다시 하면 된다 */ }
 }
 
+// 저장 못 하는 브라우저에서도 이 페이지를 보는 동안은 접힌 상태를 기억한다
+const collapsed = (() => {
+  try { return new Set(JSON.parse(localStorage.getItem(COLLAPSED) ?? '[]')); } catch { return new Set(); }
+})();
+function saveCollapsed() {
+  try { localStorage.setItem(COLLAPSED, JSON.stringify([...collapsed])); } catch { /* 새로고침하면 다시 펼쳐질 뿐 */ }
+}
+
 // ---------- 카드 머리: 보드와 같은 모양 (제목 · 세부 작업 · 배지 순서 마감 → 크기 → 담당) ----------
 
-function cardHead(task, tasks, members) {
-  const parent = tasks.find((t) => t.id === task.parentId);
+// inGroup: 큰 작업 묶음 안에 그릴 때는 묶음 제목이 이미 말해 주므로 "↳ …의 세부 작업" 줄을 뺀다
+function cardHead(task, tasks, members, inGroup = false) {
+  const parent = inGroup ? null : tasks.find((t) => t.id === task.parentId);
   const d = task.status === 'DONE' ? null : daysLeft(task.dueDate);
   const badges = el('div', { className: 'badges' },
     d === null ? null
@@ -210,9 +220,9 @@ function recordDetails(members, summary) {
 
 // ---------- 전체 ----------
 
-function card(task, tasks, members, summary) {
+function card(task, tasks, members, summary, inGroup = false) {
   return el('article', { className: 'card stack' },
-    ...cardHead(task, tasks, members),
+    ...cardHead(task, tasks, members, inGroup),
     task.hours != null ? recordDetails(members, summary)
       : summary?.revealed ? revealedSlot(task, members, summary) : hiddenSlot(task, members, summary ?? { submittedIds: [] }));
 }
@@ -252,10 +262,50 @@ if (slot) {
     // 상위 작업(다른 작업이 parentId 로 가리키는 작업)은 세부 작업에서 추정하므로 목록에서 뺀다 — team/README "상위 작업은 세지 않습니다"
     const parentIds = new Set(tasks.map((t) => t.parentId).filter(Boolean));
     const own = tasks.filter((t) => !parentIds.has(t.id));
-    // 크기 미정 작업이 위(등록 순서), 확정된 작업이 아래
-    const ordered = [...own.filter((t) => t.hours == null), ...own.filter((t) => t.hours != null)];
-    // shortcut: 카드를 통째로 다시 그리고 입력값만 되살린다 — 커서 위치 · 펼친 수정 기록은 닫힌다. 불편하면 바뀐 카드만 갱신
-    fill(...ordered.map((t) => card(t, tasks, members, summaries[t.id])));
+    const cardOf = (t, inGroup) => card(t, tasks, members, summaries[t.id], inGroup);
+
+    // 한 칸의 작업을 큰 작업별로 묶는다. 세부 작업이 없는 작업은 혼자 카드 하나. 순서는 등록 순서
+    // 묶음은 접을 수 있다 — 접으면 제목과 "세부 n개 · 확정 k / n" 만 남아 목록을 짧게 볼 수 있다
+    function grouped(list) {
+      const nodes = [];
+      const seen = new Set();
+      for (const t of list) {
+        const parent = tasks.find((p) => p.id === t.parentId);
+        if (!parent) { nodes.push(cardOf(t, false)); continue; }
+        if (seen.has(parent.id)) continue;
+        seen.add(parent.id);
+        const all = own.filter((k) => k.parentId === parent.id);
+        const box = el('details', { className: 'group', open: !collapsed.has(parent.id) },
+          el('summary', {}, el('strong', {}, parent.title), ' ',
+            el('span', { className: 'badge' }, `세부 ${all.length}개 · 확정 ${all.filter((k) => k.hours != null).length} / ${all.length}`)),
+          el('div', { className: 'stack' }, ...list.filter((k) => k.parentId === parent.id).map((k) => cardOf(k, true))));
+        box.dataset.parent = parent.id;
+        box.addEventListener('toggle', () => {
+          if (box.open) collapsed.delete(parent.id); else collapsed.add(parent.id);
+          saveCollapsed();
+          // 세부 작업이 두 칸에 나뉘어 있으면 같은 큰 작업 묶음이 두 개 — 함께 접고 편다
+          slot.querySelectorAll(`details.group[data-parent="${CSS.escape(parent.id)}"]`).forEach((d) => { d.open = box.open; });
+        });
+        nodes.push(box);
+      }
+      return nodes;
+    }
+    const column = (title, list, emptyText) => el('section', { className: 'stack', ariaLabel: title },
+      el('div', { className: 'between' }, el('h3', {}, title), el('span', { className: 'badge' }, String(list.length))),
+      ...(list.length ? grouped(list) : [el('p', { className: 'sub' }, emptyText)]));
+
+    // 묶음이 있을 때만 "모두 접기 · 모두 펼치기"
+    const setAll = (open) => slot.querySelectorAll('details.group').forEach((d) => { d.open = open; });
+    const hasGroups = own.some((t) => tasks.some((p) => p.id === t.parentId));
+    const toolbar = hasGroups ? el('div', { className: 'row' },
+      el('button', { className: 'btn btn--quiet btn--s', type: 'button', onclick: () => setAll(false) }, '모두 접기'),
+      el('button', { className: 'btn btn--quiet btn--s', type: 'button', onclick: () => setAll(true) }, '모두 펼치기')) : null;
+
+    // 넓은 화면은 왼쪽 "추정 중" · 오른쪽 "크기 확정", 640px 이하는 위아래 (R6)
+    // shortcut: 카드를 통째로 다시 그리고 입력값 · 접힌 묶음만 되살린다 — 커서 위치 · 펼친 수정 기록은 닫힌다. 불편하면 바뀐 카드만 갱신
+    fill(...[toolbar, el('div', { className: 'split' },
+      column('추정 중', own.filter((t) => t.hours == null), '추정할 작업이 없습니다.'),
+      column('크기 확정', own.filter((t) => t.hours != null), '아직 크기가 확정된 작업이 없습니다.'))].filter(Boolean));
   });
 }
 
