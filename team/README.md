@@ -60,7 +60,7 @@ flowchart LR
 | **화면** | AI 세분화 제안(체크박스로 골라 등록), 블라인드 추정(시간 · 근거 제출 → 동시 공개 → 크기 확정) | `public/js/sizing.js` |
 | **계산 규칙** | AI 응답 검사, 추정 요약(공개 조건 · 중앙값 · 의견 차이 · 근거) | `src/lib/breakdown.js` · `estimate.js` |
 | **서버 API** | `POST /api/breakdown` (LLM 호출)<br/>`POST /api/tasks/:id/estimates`<br/>`GET /api/estimates` | `src/routes/breakdown.js` · `estimates.js`, `src/lib/llm.js` |
-| **테스트** | 32개 | `test/breakdown.test.js` · `estimate.test.js` · `llm.test.js` |
+| **테스트** | 38개 | `test/breakdown.test.js` · `estimate.test.js` · `llm.test.js` |
 | **시연** | "발표 준비"를 AI로 나눠 등록 → 세 명이 추정 제출 → 동시 공개 · 의견 차이 → 크기 확정. API 키를 비워도 동작하는 것 | |
 
 ### B 박지호 — 분배 기능
@@ -100,6 +100,24 @@ flowchart LR
 | 추정값 | C의 작업 응답에는 `estimates` 가 **없습니다.** A의 `GET /api/estimates` 만 요약을 내보냅니다 |
 | 화면 갱신 | 누구든 데이터를 바꾸면 `refresh()` → `'data'` 이벤트 → 각자 자기 API를 불러 자기 자리를 다시 그립니다 |
 | 상위 작업 | 아래 "상위 작업은 세지 않습니다" — 세 기능이 같은 기준으로 뺍니다 |
+| 팀원 삭제와 추정 공개 | **예외 — A 의 함수를 C 가 부릅니다.** C 의 `DELETE /api/members/:id` 가 팀원을 지운 뒤, 작업마다 A 의 `revealAfterMemberRemoved(task, 남은 팀원 id, 지금)` 를 불러 결과(`estimatesRevealed` · `estimateHistory`)를 덮어씁니다. 삭제로 "남은 전원이 냄" 이 채워진 작업에 공개 기록과 ver 1 을 남기기 위해서입니다 (아래 코드) |
+
+### 팀원을 지울 때 추정 공개 처리
+
+팀원을 지우면 그 사람이 안 낸 탓에 공개되지 않던 작업이 "남은 전원이 냄" 이 될 수 있습니다. 추정은 제출할 때만 공개를 기록하므로, 지우는 쪽(C)이 A 의 함수로 그 자리에서 기록합니다. 그 사람이 낸 추정은 지우지 않습니다 — 남은 팀원 id 에 없으니 계산에서만 빠집니다.
+
+```js
+// src/routes/members.js (C) — DELETE /api/members/:id 안에서, 팀원을 db.members 에서 뺀 뒤
+import { revealAfterMemberRemoved } from '../lib/estimate.js';
+
+const ids = db.members.map((m) => m.id);        // 지운 뒤 남은 팀원
+const now = new Date().toISOString();
+for (const t of db.tasks) Object.assign(t, revealAfterMemberRemoved(t, ids, now));
+save(db);
+```
+
+- 함수는 원본 작업을 바꾸지 않고 덮어쓸 값만 돌려줍니다. 이미 공개된 작업 · 아직 안 낸 팀원이 남은 작업은 그대로 돌려줍니다.
+- 테스트는 A 의 `test/estimate.test.js` 에 있습니다 (공개 · 그대로 · 이미 공개 · 삭제된 사람 값 제외 · 0명 · 원본 그대로).
 
 ### 상위 작업은 세지 않습니다
 
