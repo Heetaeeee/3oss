@@ -36,6 +36,12 @@ test("완료 작업 비중은 완료한 예상 시간의 비율과 시간을 함
   assert.deepEqual(doneShare("m1", tasks), { percent: 75, hours: 6, totalHours: 8 });
   assert.deepEqual(doneShare("m2", tasks), { percent: 25, hours: 2, totalHours: 8 });
 });
+test('담당자가 없는 완료 작업도 전체 시간에 들어가고, 담당 미정 몫으로 따로 셀 수 있다', () => {
+  // 삭제된 팀원이 끝낸 4시간 → 담당 미정. 남은 팀원 비중을 더해도 60% 라서 나머지 40% 를 따로 보여 준다
+  const tasks = [t({ assigneeId: 'm1', hours: 6, status: 'DONE' }), t({ assigneeId: null, hours: 4, status: 'DONE' })];
+  assert.deepEqual(doneShare('m1', tasks), { percent: 60, hours: 6, totalHours: 10 });
+  assert.deepEqual(doneShare(null, tasks), { percent: 40, hours: 4, totalHours: 10 });
+});
 test("완료된 작업이 없으면 비중은 0", () => {
   assert.deepEqual(doneShare("m1", []), { percent: 0, hours: 0, totalHours: 0 });
 });

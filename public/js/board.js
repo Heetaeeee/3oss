@@ -106,7 +106,7 @@ function fill(slot, ...nodes) {
 
 // ---------- 'data' 이벤트마다 다시 그린다 ----------
 
-function drawMembers(members) {
+function drawMembers(members, tasks) {
   if (members.length === 0) {
     memberList.replaceChildren(el('p', { className: 'sub' }, '아직 팀원이 없습니다. 아래에서 첫 팀원을 등록하세요.'));
     return;
@@ -117,10 +117,18 @@ function drawMembers(members) {
     hours.addEventListener('change', () =>
       act(hours, error, () => api(`/api/members/${m.id}`, { method: 'PATCH', body: { availableHours: hours.valueAsNumber } }),
         () => { hours.value = m.availableHours; }));
+    const remove = el('button', { className: 'btn btn--quiet btn--s', type: 'button', ariaLabel: `${m.name} 삭제` }, '삭제');
+    remove.addEventListener('click', () => {
+      const mine = tasks.filter((t) => t.assigneeId === m.id).length;
+      const note = (mine > 0 ? `\n맡은 작업 ${mine}개는 담당 미정이 됩니다.` : '')
+        + '\n낸 추정은 남지만 공개 · 중앙값 계산에서는 빠집니다.';
+      if (!confirm(`'${m.name}' 팀원을 삭제할까요? 되돌릴 수 없습니다.${note}`)) return;
+      act(remove, error, () => api(`/api/members/${m.id}`, { method: 'DELETE' }));
+    });
     return el('div', { className: 'stack' },
       el('div', { className: 'between' },
         el('span', { className: 'who' }, avatar(members, m.id), m.name),
-        field('이번 주 시간', hours, 'field field--s')),
+        el('div', { className: 'row' }, field('이번 주 시간', hours, 'field field--s'), remove)),
       error);
   }));
 }
@@ -239,7 +247,8 @@ async function drawProgress(slot, members, tasks, isLatest) {
   const done = counted.filter((t) => t.status === 'DONE').length;
   const shares = p.doneHoursTotal === 0
     ? [el('p', { className: 'sub' }, done === 0 ? '아직 완료된 작업이 없습니다.' : '완료한 작업의 확정 시간이 아직 없습니다.')]
-    : p.members.map((m) => meter(m.name, `${m.doneShare}% · ${m.doneHours}시간 / ${p.doneHoursTotal}시간`, m.doneShare));
+    : [...p.members, ...(p.unassigned.doneHours > 0 ? [{ name: '담당 미정', ...p.unassigned }] : [])]
+      .map((m) => meter(m.name, `${m.doneShare}% · ${m.doneHours}시간 / ${p.doneHoursTotal}시간`, m.doneShare));
   // A 의 지난주 요약 자리. 다시 그려도 A 가 채운 내용이 지워지지 않게 같은 노드를 다시 붙인다
   const summary = slot.querySelector('#weekly-summary') ?? el('div', { id: 'weekly-summary' });
   fill(slot,
@@ -260,7 +269,7 @@ let progressSeq = 0;
 
 document.addEventListener('data', async (e) => {
   const { members, tasks } = e.detail;
-  if (memberList) drawMembers(members);
+  if (memberList) drawMembers(members, tasks);
   if ($('#tasks')) drawTasks($('#tasks'), members, tasks);
   if ($('#progress')) {
     const mine = ++progressSeq;

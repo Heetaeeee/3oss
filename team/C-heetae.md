@@ -6,7 +6,7 @@
 |---|---|
 | **화면** | 팀원 등록, 작업 보드, 진행률 · D-day · 완료 작업 비중 — `public/js/board.js` |
 | **계산 규칙** | 입력값 검사(`validate`), 진행률 · D-day · 완료 작업 비중(`progress`) |
-| **서버 API** | `GET · POST · PATCH /api/members`, `GET · POST · PATCH · DELETE /api/tasks`, `GET /api/progress` |
+| **서버 API** | `GET · POST · PATCH · DELETE /api/members`, `GET · POST · PATCH · DELETE /api/tasks`, `GET /api/progress` |
 | **공용** | 홈과 기능별 페이지 `public/index.html` · `board.html` · `sizing.html` · `load.html` 의 틀, `public/js/api.js` (`style.css` 는 김권섭) |
 
 **안 맡는 것:** 부담률 · 담당자 추천(박지호), AI 세분화 · 블라인드 추정(김권섭)
@@ -37,7 +37,7 @@ C-0 ~ C-5 와 추가 구현(주차별 수행률)이 모두 `main` 에 들어갔�
 | C-5 | 진행 현황 — 진행률, 팀원별 맡은 시간 `맡은 6시간 (완료 2시간)`, 완료 작업 비중 `75% · 6시간 / 8시간`. 건수 · 맡은 시간도 상위 작업은 세지 않음 | `public/js/board.js` | #8 · #38 |
 | 추가 | 주차별 수행률 — 월요일 시작, 그 주 마감 작업 중 완료 비율, 이번 주까지만, 상위 작업 제외. 표시는 `11/16 ~ 11/22 (이번 주)`. 서버 시간대 한국 | `src/lib/progress.js` · `src/routes/weekly.js` | #25 · #26 · #27 · #31 |
 
-**테스트 44개** — validate 17 · progress 20 · completed-at 4 · tasks-api 3.
+**테스트 49개** — validate 17 · progress 21 · completed-at 4 · tasks-api 3 · members-api 4.
 
 ---
 
@@ -54,7 +54,7 @@ C-0 ~ C-5 와 추가 구현(주차별 수행률)이 모두 `main` 에 들어갔�
 
 ## C-6. 마무리 점검표
 
-- [ ] `npm test` 에서 C의 테스트 44개가 통과한다
+- [ ] `npm test` 에서 C의 테스트 49개가 통과한다
 - [ ] 팀원 3명 · 작업 5개를 넣고 새로고침해도 그대로다
 - [ ] 작업을 완료로 바꾸면 **새로고침 없이** 진행률 · 완료 작업 비중가 바뀐다
 - [ ] 가능한 시간에 음수 · 빈칸을 넣으면 서버의 안내 문장이 폼 아래에 뜬다
@@ -81,7 +81,7 @@ C-0 ~ C-5 와 추가 구현(주차별 수행률)이 모두 `main` 에 들어갔�
 | 주차 | 할 일 | 끝 기준 |
 |---|---|---|
 | **1주차** 11/19 ~ 11/23 | **R2 · R7** 작업 삭제 (`DELETE /api/tasks/:id` + 카드 삭제 버튼) | 상위 작업을 지우면 세부 작업도 함께, 지우기 전 "세부 작업 n개도 함께 삭제됩니다" 확인. 지운 뒤 작업 정의 · 분배에서도 사라짐 — **구현됨, PR 대기** (`heetae/delete-task`) |
-| | **P2** 팀원 삭제 (`DELETE /api/members/:id`) | 담당 해제, 추정은 남기되 계산에서 빠짐, 정원 1 감소, 공개 조건이 채워지면 A 의 함수로 공개 기록 |
+| | **P2** 팀원 삭제 (`DELETE /api/members/:id`) | 담당 해제, 추정은 남기되 계산에서 빠짐, 정원 1 감소, 공개 조건이 채워지면 A 의 함수로 공개 기록 — **구현됨, PR 대기** (`heetae/delete-member`). 정원 감소는 입장 코드 2단계에 |
 | | **P3** 같은 이름 막기 — 공용 검사 함수 하나 | 팀원 등록 · 이름 수정 · (2주차) 입장 세 경로가 같은 함수. 400 `이미 같은 이름의 팀원이 있습니다.` — **구현됨, PR 대기** (`heetae/input-guards`) |
 | | **P9** 공용 화면 오류 3개 — ① 마지막 `refresh()` 결과만 그림 ② 저장 실패 시 선택값 되돌림 ③ 성공하면 `#app-error` 비움 | **구현됨, PR 대기** (`heetae/screen-fixes`) |
 | | **R3** 진행 현황에 팀원별 맡은 시간 | 담당을 정하면 바로 "맡은 n시간(완료 m시간)" 이 바뀜 — **구현됨, PR 대기** (`heetae/screen-fixes`) |

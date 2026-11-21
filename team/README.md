@@ -47,8 +47,8 @@ flowchart LR
 |---|---|---|
 | **화면** | 팀원 등록 폼 · 목록, 작업 등록 폼 · 작업 보드(상태 · 담당자 · 크기 · 마감일), 진행 현황(진행률 · D-day · 완료 작업 비중) | `public/js/board.js` |
 | **계산 규칙** | 입력값 검사, 진행률, D-day, 완료 작업 비중 | `src/lib/validate.js` · `progress.js` |
-| **서버 API** | `GET · POST · PATCH /api/members`<br/>`GET · POST · PATCH · DELETE /api/tasks`<br/>`GET /api/progress` | `src/routes/members.js` · `tasks.js` · `progress.js` |
-| **테스트** | 44개 | `test/validate.test.js` · `progress.test.js` · `completed-at.test.js` · `tasks-api.test.js` |
+| **서버 API** | `GET · POST · PATCH · DELETE /api/members`<br/>`GET · POST · PATCH · DELETE /api/tasks`<br/>`GET /api/progress` | `src/routes/members.js` · `tasks.js` · `progress.js` |
+| **테스트** | 49개 | `test/validate.test.js` · `progress.test.js` · `completed-at.test.js` · `tasks-api.test.js` · `members-api.test.js` |
 | **시연** | 팀원 · 작업 등록 → 잘못된 값에 안내 문장 → 완료 처리 → 진행률 · 완료 작업 비중 변화 | |
 
 ### A 김권섭 — 작업 정의 기능
@@ -186,6 +186,7 @@ const isParent = (task) => parentIds.has(task.id);
 | C | `GET /api/members` | — | `Member[]` |
 | C | `POST /api/members` | `{ name, availableHours }` | `Member` (201) — 같은 이름이 있으면 400 `이미 같은 이름의 팀원이 있습니다.` |
 | C | `PATCH /api/members/:id` | `{ name?, availableHours? }` | `Member` — 다른 팀원과 같은 이름이면 400 |
+| C | `DELETE /api/members/:id` | — | `{ deleted, unassigned: [taskId, …] }` — 맡은 작업은 담당 미정, 낸 추정은 남기되 계산에서 빠짐, 공개 조건이 채워진 작업은 공개 기록. 없으면 404 |
 | C | `GET /api/tasks` | — | `Task[]` (`estimates` · `estimateHistory` 필드 없이) |
 | C | `POST /api/tasks` | `{ title, dueDate?, parentId? }` | `Task` (201) |
 | C | `PATCH /api/tasks/:id` | `{ status?, assigneeId?, hours?, dueDate?, title? }` | `Task` — 추정 공개 전에 `hours` 를 숫자로 보내면 400 (`null` 로 되돌리기는 허용) |
@@ -202,7 +203,8 @@ const isParent = (task) => parentIds.has(task.id);
 {
   progress: 40,                      // 전체 진행률 %
   doneHoursTotal: 12,                // 완료된 작업의 확정 예상 시간 합
-  members: [ { memberId: 'm1', name: '김권섭', doneShare: 50, doneHours: 6 } ]
+  members: [ { memberId: 'm1', name: '김권섭', doneShare: 50, doneHours: 6 } ],
+  unassigned: { doneShare: 20, doneHours: 2 }  // 담당자 없는 완료 작업 몫 (삭제된 팀원이 끝낸 작업 등). 0시간이면 화면에 안 그림
 }
 
 // A — estimate 요약
