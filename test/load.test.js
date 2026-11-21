@@ -140,3 +140,24 @@ test('표시 부담률이 같아도 반올림 전 예상 비율이 낮은 팀원
     [50, 50]
   );
 });
+
+test('상위 작업 6시간과 세부 작업 4시간 중 세부 작업만 부담률에 반영한다', () => {
+  const tasks = [
+    task({
+      id: 'parent',
+      assigneeId: 'A',
+      hours: 6
+    }),
+    task({
+      id: 'child',
+      parentId: 'parent',
+      assigneeId: 'A',
+      hours: 4
+    })
+  ];
+
+  const hours = currentHours('A', tasks);
+
+  assert.equal(hours, 4);
+  assert.equal(loadPercent(hours, 10), 40);
+});

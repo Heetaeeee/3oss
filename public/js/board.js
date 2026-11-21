@@ -18,13 +18,17 @@ function field(label, input, className = 'field') {
 }
 
 // 버튼을 잠근 채 요청 → 성공하면 refresh, 실패하면 서버 문장을 errorBox 에 띄운다
-async function act(button, errorBox, fn) {
+// undo: 실패했을 때 바꾸던 값을 원래대로 돌리는 함수 (선택칸 · 입력칸)
+async function act(button, errorBox, fn, undo) {
   button.disabled = true;
   errorBox.textContent = '';
+  let saved = false;
   try {
     await fn();
+    saved = true;
     await refresh();
   } catch (error) {
+    if (!saved) undo?.();
     errorBox.textContent = error.message;
   } finally {
     button.disabled = false;
@@ -111,7 +115,8 @@ function drawMembers(members) {
     const hours = el('input', { type: 'number', min: 0, step: 0.5, value: m.availableHours, ariaLabel: `${m.name} 이번 주 가능한 시간(시간)` });
     const error = el('p', { className: 'msg-error', role: 'alert' });
     hours.addEventListener('change', () =>
-      act(hours, error, () => api(`/api/members/${m.id}`, { method: 'PATCH', body: { availableHours: hours.valueAsNumber } })));
+      act(hours, error, () => api(`/api/members/${m.id}`, { method: 'PATCH', body: { availableHours: hours.valueAsNumber } }),
+        () => { hours.value = m.availableHours; }));
     return el('div', { className: 'stack' },
       el('div', { className: 'between' },
         el('span', { className: 'who' }, avatar(members, m.id), m.name),
@@ -122,16 +127,18 @@ function drawMembers(members) {
 
 function taskCard(task, members, tasks) {
   const error = el('p', { className: 'msg-error', role: 'alert' });
-  const patch = (control, body) => act(control, error, () => api(`/api/tasks/${task.id}`, { method: 'PATCH', body }));
+  // 저장에 실패하면 선택칸을 서버에 있는 값으로 되돌린다
+  const patch = (control, body, was) =>
+    act(control, error, () => api(`/api/tasks/${task.id}`, { method: 'PATCH', body }), () => { control.value = was; });
 
   const status = el('select', { className: 'status', ariaLabel: `${task.title} 상태` },
     ...Object.entries(STATUS).map(([value, label]) => el('option', { value, selected: task.status === value }, label)));
-  status.addEventListener('change', () => patch(status, { status: status.value }));
+  status.addEventListener('change', () => patch(status, { status: status.value }, task.status));
 
   const assignee = el('select', {},
     el('option', { value: '' }, '미정'),
     ...members.map((m) => el('option', { value: m.id, selected: task.assigneeId === m.id }, m.name)));
-  assignee.addEventListener('change', () => patch(assignee, { assigneeId: assignee.value || null }));
+  assignee.addEventListener('change', () => patch(assignee, { assigneeId: assignee.value || null }, task.assigneeId ?? ''));
 
   const d = daysLeft(task.dueDate);
   const owner = members.find((m) => m.id === task.assigneeId);
@@ -146,12 +153,30 @@ function taskCard(task, members, tasks) {
     owner ? el('span', { className: 'badge badge--team' }, `담당 ${owner.name}`)
       : el('span', { className: 'badge badge--todo' }, '담당 미정'));
 
+  const remove = el('button', { className: 'btn btn--quiet btn--s', type: 'button', ariaLabel: `${task.title} 삭제` }, '삭제');
+  remove.addEventListener('click', () => {
+    // 서버 withDescendants 와 같은 범위 — 세부 작업의 세부 작업까지 센다
+    const ids = new Set([task.id]);
+    for (let grew = true; grew;) {
+      grew = false;
+      for (const t of tasks) if (ids.has(t.parentId) && !ids.has(t.id)) { ids.add(t.id); grew = true; }
+    }
+    const children = ids.size - 1;
+    // 마지막 세부 작업을 지우면 상위 작업이 일반 작업으로 돌아가 진행률 · 부담률에 다시 들어간다
+    const parent = tasks.find((t) => t.id === task.parentId);
+    const lastChild = parent && !tasks.some((t) => t.parentId === parent.id && !ids.has(t.id));
+    const note = (children > 0 ? `\n세부 작업 ${children}개도 함께 삭제됩니다.` : '')
+      + (lastChild ? `\n'${parent.title}'은(는) 일반 작업으로 돌아가 진행률 · 부담률에 다시 들어갑니다.` : '');
+    if (!confirm(`'${task.title}' 작업을 삭제할까요? 되돌릴 수 없습니다.${note}`)) return;
+    act(remove, error, () => api(`/api/tasks/${task.id}`, { method: 'DELETE' }));
+  });
+
   return el('article', { className: 'card stack' },
     el('div', { className: 'between' }, el('h3', {}, task.title), status),
     parent ? el('p', { className: 'sub' }, `↳ ${parent.title}의 세부 작업`) : null,
     badges,
     el('div', { className: 'slot stack' },
-      el('div', { className: 'row' }, field('담당자', assignee)),
+      el('div', { className: 'between' }, field('담당자', assignee), remove),
       error));
 }
 
@@ -168,11 +193,20 @@ function drawTasks(slot, members, tasks) {
   })));
 }
 
+// '2026-11-16' → '11/16 ~ 11/22', 오늘이 그 주면 ' (이번 주)' 를 붙인다
+function weekLabel(weekStart) {
+  const md = (d) => `${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
+  const start = new Date(`${weekStart}T00:00:00Z`);
+  const end = new Date(start.getTime() + 6 * 86_400_000);
+  const thisWeek = daysLeft(weekStart) <= 0 && daysLeft(weekStart) > -7;
+  return `${md(start)} ~ ${md(end)}${thisWeek ? ' (이번 주)' : ''}`;
+}
+
 async function drawWeekly(tasks) {
   try {
     const { weeks } = await api('/api/weekly');
     if (weeks.length > 0) {
-      return weeks.map((w) => meter(`${+w.weekStart.slice(5, 7)}/${+w.weekStart.slice(8)} 주`, `${w.rate}% · ${w.done}건 / ${w.total}건`, w.rate));
+      return weeks.map((w) => meter(weekLabel(w.weekStart), `${w.rate}% · ${w.done}건 / ${w.total}건`, w.rate));
     }
     // 서버는 이번 주까지만 센다. 마감일이 전부 다음 주 이후면 마감일은 있어도 목록이 비어 있다
     return [el('p', { className: 'sub' }, tasks.some((t) => t.dueDate)
@@ -183,12 +217,25 @@ async function drawWeekly(tasks) {
   }
 }
 
-async function drawProgress(slot, tasks) {
+// 담당을 정하면 바로 바뀌도록 서버를 거치지 않고 작업 목록에서 센다. 크기 미정 작업은 0시간
+function assignedHours(members, counted) {
+  if (members.length === 0) return [el('p', { className: 'sub' }, '아직 팀원이 없습니다.')];
+  const sum = (list) => Math.round(list.reduce((s, t) => s + (t.hours ?? 0), 0) * 10) / 10;
+  return members.map((m) => {
+    const mine = counted.filter((t) => t.assigneeId === m.id);
+    return el('div', { className: 'between' },
+      el('span', { className: 'who' }, avatar(members, m.id), m.name),
+      el('span', {}, `맡은 ${sum(mine)}시간 (완료 ${sum(mine.filter((t) => t.status === 'DONE'))}시간)`));
+  });
+}
+
+async function drawProgress(slot, members, tasks, isLatest) {
   // 서버 progress.js 와 같은 기준: 다른 작업이 parentId 로 가리키는 상위 작업은 세지 않는다
   const parentIds = new Set(tasks.map((t) => t.parentId).filter(Boolean));
   const counted = tasks.filter((t) => !parentIds.has(t.id));
   // 주차별 조회가 실패해도 진행률 · 완료 작업 비중은 보이게 따로 받는다
   const [p, weekly] = await Promise.all([api('/api/progress'), drawWeekly(counted)]);
+  if (!isLatest()) return;
   const done = counted.filter((t) => t.status === 'DONE').length;
   const shares = p.doneHoursTotal === 0
     ? [el('p', { className: 'sub' }, done === 0 ? '아직 완료된 작업이 없습니다.' : '완료한 작업의 확정 시간이 아직 없습니다.')]
@@ -197,6 +244,8 @@ async function drawProgress(slot, tasks) {
   const summary = slot.querySelector('#weekly-summary') ?? el('div', { id: 'weekly-summary' });
   fill(slot,
     meter('전체 진행률', `${p.progress}% · ${done}건 / ${counted.length}건`, p.progress),
+    el('h3', { className: 'slot' }, '팀원별 맡은 시간'),
+    ...assignedHours(members, counted),
     el('h3', { className: 'slot' }, '완료 작업 비중'),
     ...shares,
     el('p', { className: 'sub' }, '완료한 작업의 확정 예상 시간 기준입니다. 실제 걸린 시간과 다를 수 있습니다.'),
@@ -206,13 +255,18 @@ async function drawProgress(slot, tasks) {
     el('p', { className: 'sub' }, '그 주에 마감인 작업 중 완료한 비율입니다.'));
 }
 
+// 진행 현황은 'data' 뒤에 따로 API 를 기다리므로, 먼저 시작한 요청이 늦게 끝나 최신 화면을 덮지 않게 마지막 것만 그린다
+let progressSeq = 0;
+
 document.addEventListener('data', async (e) => {
   const { members, tasks } = e.detail;
   if (memberList) drawMembers(members);
   if ($('#tasks')) drawTasks($('#tasks'), members, tasks);
   if ($('#progress')) {
-    await drawProgress($('#progress'), tasks).catch((error) => {
-      fill($('#progress'), el('p', { className: 'msg-error', role: 'alert' }, error.message));
+    const mine = ++progressSeq;
+    const isLatest = () => mine === progressSeq;
+    await drawProgress($('#progress'), members, tasks, isLatest).catch((error) => {
+      if (isLatest()) fill($('#progress'), el('p', { className: 'msg-error', role: 'alert' }, error.message));
     });
   }
 });

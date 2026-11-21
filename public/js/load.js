@@ -143,14 +143,19 @@ function drawRecommendations(tasks, members) {
 
   const title = el('h2', {}, '담당자 추천');
 
-  const pending = tasks.filter((task) =>
+  const parentIds = new Set(
+    tasks.map((task) => task.parentId).filter(Boolean)
+  );
+  const ownTasks = tasks.filter((task) => !parentIds.has(task.id));
+
+  const pending = ownTasks.filter((task) =>
     task.status !== 'DONE' &&
     task.hours != null &&
     task.assigneeId == null
   );
 
   if (pending.length === 0) {
-    const unfinished = tasks.filter(
+    const unfinished = ownTasks.filter(
       (task) => task.status !== 'DONE'
     );
 

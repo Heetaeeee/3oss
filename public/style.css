@@ -145,3 +145,5 @@ select.status { min-height: 40px; width: auto; font-size: 14px; border-radius: v
 a.card { color: inherit; text-decoration: none; }
 @media (hover: hover) and (pointer: fine) { .nav a:hover, a.card:hover { background: var(--track); } }
 #app-error:empty { display: none; }
+/* hidden 속성은 .stack · .row 같은 display 지정보다 우선 */
+[hidden] { display: none !important; }

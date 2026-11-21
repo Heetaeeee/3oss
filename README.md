@@ -153,7 +153,7 @@ LLM은 `/api/breakdown` 한 경로에만 연결되어 있고, 계산과 저장�
 | `GET /api/members` | 팀원 목록 | 우희태 |
 | `POST /api/members` · `PATCH /api/members/:id` | 팀원 등록 · 수정 | 우희태 |
 | `GET /api/tasks` | 작업 목록 | 우희태 |
-| `POST /api/tasks` · `PATCH /api/tasks/:id` | 작업 등록, 상태 · 담당자 · 확정 시간 · 마감일 수정 | 우희태 |
+| `POST /api/tasks` · `PATCH /api/tasks/:id` · `DELETE /api/tasks/:id` | 작업 등록, 상태 · 담당자 · 확정 시간 · 마감일 수정, 삭제(세부 작업 포함) | 우희태 |
 | `GET /api/progress` | 전체 진행률, 팀원별 완료 작업 비중 | 우희태 |
 | `GET /api/weekly` | 주차별 수행률 (그 주에 마감인 작업 중 완료한 비율) | 우희태 |
 | `POST /api/recommend` | 예상 부담률 비교와 추천 담당자, 근거 문장 | 박지호 |

@@ -231,7 +231,7 @@ body:has(#owners:checked) [data-owner]::before { content: attr(data-owner); posi
         <span class="badge badge--ai">AI 제안</span>
       </div>
       <div class="row">
-        <label class="field" style="flex-grow:3">나눌 작업 제목 <input value="발표 준비"></label>
+        <label class="field" style="flex-grow:3">나눌 작업 <select><option>발표 준비</option><option>배포 준비</option></select></label>
         <button class="btn">AI로 나누기</button>
       </div>
       <div>
@@ -399,7 +399,7 @@ body:has(#owners:checked) [data-owner]::before { content: attr(data-owner); posi
     <section class="panel stack" data-owner="A 김권섭, #breakdown 처음">
       <h3>큰 작업 나누기 — 처음</h3>
       <div class="row">
-        <label class="field" style="flex-grow:3">나눌 작업 제목 <input placeholder="예: 발표 준비"></label>
+        <label class="field" style="flex-grow:3">나눌 작업 <select><option>발표 준비</option></select></label>
         <button class="btn btn--primary">AI로 나누기</button>
       </div>
       <p class="sub">작업 제목만 AI에 보냅니다. 팀원 이름과 시간은 보내지 않습니다.</p>
