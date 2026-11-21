@@ -62,3 +62,15 @@ test('새 작업은 제목 · 마감일 · 상위 작업을 받는다', () => {
 test('작업 수정으로 상위 작업을 바꿀 수 없다', () => {
   assert.deepEqual(validateTaskPatch({ parentId: 't2', status: 'DONE' }), { ok: true, value: { status: 'DONE' } });
 });
+
+test('같은 이름의 팀원이 있으면 거절한다 (앞뒤 공백 무시)', () => {
+  assert.equal(validateMember({ name: ' 박지호 ', availableHours: 5 }, { takenNames: ['박지호'] }).error, '이미 같은 이름의 팀원이 있습니다.');
+  assert.equal(validateMember({ name: '박지호', availableHours: 5 }, { takenNames: ['김권섭'] }).ok, true);
+  // 가능한 시간만 고칠 때는 이름 검사를 하지 않는다
+  assert.equal(validateMember({ availableHours: 5 }, { partial: true, takenNames: ['박지호'] }).ok, true);
+});
+test('추정이 공개되기 전에는 크기를 정하지 못한다 (되돌리기 null 은 허용)', () => {
+  assert.match(validateTaskPatch({ hours: 4 }).error, /공개된 뒤/);
+  assert.deepEqual(validateTaskPatch({ hours: 4 }, { revealed: true }), { ok: true, value: { hours: 4 } });
+  assert.equal(validateTaskPatch({ hours: null }).ok, true);
+});
