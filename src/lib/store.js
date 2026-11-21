@@ -5,13 +5,15 @@ import {
   renameSync,
   rmSync
 } from 'node:fs';
-import { dirname } from 'node:path';
+import { dirname, join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
-const dbPath = fileURLToPath(
-    new URL('../../data/db.json', import.meta.url)
-);
+// 환경 변수가 없거나 비어 있으면 기존 data/ 폴더를 사용한다.
+const dataDir = process.env.DATA_DIR ||
+  fileURLToPath(new URL('../../data', import.meta.url));
+
+const dbPath = join(dataDir, 'db.json');
 
 function validateData(db) {
   if (

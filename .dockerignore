@@ -1,0 +1,14 @@
+node_modules
+data
+.env
+.env.*
+!.env.example
+.git
+.github
+.claude
+.codex
+tmp
+test
+team
+*.md
+*.pdf
