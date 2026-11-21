@@ -345,8 +345,10 @@ if (breakdown) {
   // 세부 작업을 붙이는 중인 작업. 등록이 중간에 실패하면 이 작업 아래에 남은 것만 이어서 등록한다
   // (작업 삭제 API 가 없어 되돌릴 수 없으므로 이어서 한다). 새로 나누거나 등록을 마치면 잊는다
   let parentId = null;
-  // 등록하는 동안(요청 사이 await) 입력 · 다시 나누기 · 두 번째 등록을 막는다
-  let registering = false;
+  // 지금 보이는 제안 목록을 받은 작업. 등록은 선택칸 값이 아니라 이 작업 아래에 한다 — A 의 제안이 B 아래로 가지 않게
+  let suggestedFor = null;
+  // 나누는 중 · 등록하는 중(요청 사이 await)에는 선택 · 입력 · 나누기 · 등록을 모두 막는다 — 둘이 겹쳐 실행되지 않게
+  let busy = false;
 
   // 나눌 수 있는 작업 = 세부 작업이 아니고, 이미 상위 작업도 아니고, 완료되지 않은 작업 (한 단계로만 나눈다)
   const candidates = () => {
@@ -365,8 +367,9 @@ if (breakdown) {
 
   function renderTargets() {
     const open = candidates();
-    // 이어서 등록하는 중이면 그 작업은 이미 세부 작업이 생겨 목록에서 빠지므로 남겨 둔다
-    const keep = parentId && !open.some((t) => t.id === parentId) ? tasks.filter((t) => t.id === parentId) : [];
+    // 이어서 등록하는 중이거나 제안을 받아 둔 작업은 목록 조건에서 빠져도(세부 작업이 생김 등) 남겨 둔다 — 선택칸이 몰래 바뀌지 않게
+    const pin = parentId ?? suggestedFor;
+    const keep = pin && !open.some((t) => t.id === pin) ? tasks.filter((t) => t.id === pin) : [];
     const options = [...keep, ...open];
     const was = target.value;
     target.replaceChildren(...options.map((t) => el('option', { value: t.id }, t.title)));
@@ -375,7 +378,11 @@ if (breakdown) {
     splitForm.hidden = options.length === 0;
     warnSelected();
   }
-  target.addEventListener('change', warnSelected);
+  target.addEventListener('change', () => {
+    warnSelected();
+    // 다른 작업을 고르면 앞 작업의 제안은 지운다 (이어서 등록하는 중에는 선택칸이 잠겨 있다)
+    if (!picks.hidden && parentId === null) show(null, []);
+  });
   document.addEventListener('data', (e) => {
     ({ tasks, members } = e.detail);
     renderTargets();
@@ -388,10 +395,10 @@ if (breakdown) {
   const updateCount = () => {
     const n = pendingRows().length;
     registerButton.textContent = parentId ? `남은 ${n}개 등록` : `고른 ${n}개 등록`;
-    registerButton.disabled = registering || n === 0;
+    registerButton.disabled = busy || n === 0;
   };
-  const setRegistering = (on) => {
-    registering = on;
+  const setBusy = (on) => {
+    busy = on;
     for (const c of [splitButton, addRow]) c.disabled = on;
     // 이어서 등록하는 중에는 붙일 작업을 바꾸지 못하게 한다
     target.disabled = on || parentId !== null;
@@ -412,8 +419,9 @@ if (breakdown) {
   });
 
   // 노랑은 AI 가 실제로 제안했을 때만 — 처음 · 실패 · 등록 뒤에는 일반 패널
-  function show(source, subtasks) {
+  function show(source, subtasks, forId = null) {
     parentId = null;
+    suggestedFor = source ? forId : null;
     target.disabled = false;
     breakdown.classList.toggle('panel--ai', source === 'ai');
     badgeBox.replaceChildren(source === 'ai' ? el('span', { className: 'badge badge--ai' }, 'AI 제안')
@@ -429,28 +437,29 @@ if (breakdown) {
 
   splitForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (registering || !selected()) return; // 엔터로 제출해도 등록 중에는 다시 나누지 않는다
-    splitButton.disabled = true;
+    if (busy || !selected()) return; // 엔터로 제출해도 나누는 중 · 등록 중에는 다시 나누지 않는다
+    const forTask = selected(); // 요청을 보낼 때의 작업 — 응답이 오면 이 작업 아래에 붙인다
+    setBusy(true);
     splitButton.textContent = '나누는 중…';
     splitError.textContent = '';
     registerError.textContent = '';
     try {
-      const { subtasks, source } = await api('/api/breakdown', { method: 'POST', body: { title: selected().title } });
-      show(source, subtasks);
+      const { subtasks, source } = await api('/api/breakdown', { method: 'POST', body: { title: forTask.title } });
+      show(source, subtasks, forTask.id);
     } catch (error) {
       splitError.textContent = messageOf(error); // AI 실패는 서버가 200 + fallback 으로 돌려준다
     } finally {
-      splitButton.disabled = false;
       splitButton.textContent = 'AI로 나누기';
+      setBusy(false);
     }
   });
 
   // 고른 작업 아래에 세부 작업을 하나씩 등록한다 — 새 상위 작업은 만들지 않는다
   registerButton.addEventListener('click', async () => {
-    if (registering || !(parentId || selected())) return;
-    parentId ??= target.value;
+    if (busy || !(parentId || suggestedFor)) return;
+    parentId ??= suggestedFor;
     const rows = pendingRows();
-    setRegistering(true);
+    setBusy(true);
     registerError.textContent = '';
     let done = 0;
     try {
@@ -467,6 +476,6 @@ if (breakdown) {
     }
     // 일부만 등록됐어도 아래 크기 추정 목록과 위 작업 목록에 바로 반영
     await refresh().catch(() => {});
-    setRegistering(false);
+    setBusy(false);
   });
 }

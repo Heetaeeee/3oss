@@ -11,9 +11,15 @@ export async function api(path, options) {
   return data;
 }
 
+let latest = 0;
+
 // members · tasks 를 받아 'data' 이벤트를 냅니다. 데이터를 바꾼 뒤에는 항상 부릅니다.
 export async function refresh() {
+  const mine = ++latest;
   const [members, tasks] = await Promise.all([api('/api/members'), api('/api/tasks')]);
+  // 늦게 도착한 이전 응답이 최신 화면을 덮지 않게, 마지막으로 부른 것만 그린다
+  if (mine !== latest) return;
+  document.querySelector('#app-error').textContent = '';
   document.dispatchEvent(new CustomEvent('data', { detail: { members, tasks } }));
 }
 

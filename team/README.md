@@ -47,8 +47,8 @@ flowchart LR
 |---|---|---|
 | **화면** | 팀원 등록 폼 · 목록, 작업 등록 폼 · 작업 보드(상태 · 담당자 · 크기 · 마감일), 진행 현황(진행률 · D-day · 완료 작업 비중) | `public/js/board.js` |
 | **계산 규칙** | 입력값 검사, 진행률, D-day, 완료 작업 비중 | `src/lib/validate.js` · `progress.js` |
-| **서버 API** | `GET · POST · PATCH /api/members`<br/>`GET · POST · PATCH /api/tasks`<br/>`GET /api/progress` | `src/routes/members.js` · `tasks.js` · `progress.js` |
-| **테스트** | 21개 | `test/validate.test.js` · `progress.test.js` |
+| **서버 API** | `GET · POST · PATCH /api/members`<br/>`GET · POST · PATCH · DELETE /api/tasks`<br/>`GET /api/progress` | `src/routes/members.js` · `tasks.js` · `progress.js` |
+| **테스트** | 44개 | `test/validate.test.js` · `progress.test.js` · `completed-at.test.js` · `tasks-api.test.js` |
 | **시연** | 팀원 · 작업 등록 → 잘못된 값에 안내 문장 → 완료 처리 → 진행률 · 완료 작업 비중 변화 | |
 
 ### A 김권섭 — 작업 정의 기능
@@ -117,7 +117,7 @@ const isParent = (task) => parentIds.has(task.id);
 |---|---|
 | A 작업 정의 | 추정 화면의 작업 목록 (추정 · 확정 대상이 아님) |
 | B 분배 | 부담률(`currentHours`), 추천 카드 목록 |
-| C 등록 · 진행 | 진행률, 완료 작업 비중 |
+| C 등록 · 진행 | 진행률, 완료 작업 비중, 주차별 수행률, 진행 현황의 건수 · 팀원별 맡은 시간 |
 
 - 작업 보드(C)에는 상위 작업도 그대로 보입니다. 세부 작업의 `↳ 발표 준비의 세부 작업` 표시도 그대로입니다.
 - 세부 작업이 없는 작업은 상위 작업이 아닙니다. 지금처럼 추정 · 배정 · 진행률에 모두 들어갑니다.
@@ -166,11 +166,12 @@ const isParent = (task) => parentIds.has(task.id);
 | 기능 | 메서드 · 경로 | 요청 본문 | 응답 |
 |---|---|---|---|
 | C | `GET /api/members` | — | `Member[]` |
-| C | `POST /api/members` | `{ name, availableHours }` | `Member` (201) |
-| C | `PATCH /api/members/:id` | `{ name?, availableHours? }` | `Member` |
+| C | `POST /api/members` | `{ name, availableHours }` | `Member` (201) — 같은 이름이 있으면 400 `이미 같은 이름의 팀원이 있습니다.` |
+| C | `PATCH /api/members/:id` | `{ name?, availableHours? }` | `Member` — 다른 팀원과 같은 이름이면 400 |
 | C | `GET /api/tasks` | — | `Task[]` (`estimates` · `estimateHistory` 필드 없이) |
 | C | `POST /api/tasks` | `{ title, dueDate?, parentId? }` | `Task` (201) |
-| C | `PATCH /api/tasks/:id` | `{ status?, assigneeId?, hours?, dueDate?, title? }` | `Task` |
+| C | `PATCH /api/tasks/:id` | `{ status?, assigneeId?, hours?, dueDate?, title? }` | `Task` — 추정 공개 전에 `hours` 를 숫자로 보내면 400 (`null` 로 되돌리기는 허용) |
+| C | `DELETE /api/tasks/:id` | — | `{ deleted: [id, …] }` — 세부 작업까지 함께 지움, 없으면 404 |
 | C | `GET /api/progress` | — | 아래 |
 | A | `POST /api/breakdown` | `{ title }` | `{ subtasks: string[], source: 'ai' \| 'fallback' }` |
 | A | `POST /api/tasks/:id/estimates` | `{ memberId, hours, reason? }` | `{ taskId, estimate }` |
