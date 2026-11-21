@@ -48,7 +48,7 @@ flowchart LR
 | **화면** | 팀원 등록 폼 · 목록, 작업 등록 폼 · 작업 보드(상태 · 담당자 · 크기 · 마감일), 진행 현황(진행률 · D-day · 완료 작업 비중) | `public/js/board.js` |
 | **계산 규칙** | 입력값 검사, 진행률, D-day, 완료 작업 비중 | `src/lib/validate.js` · `progress.js` |
 | **서버 API** | `GET · POST · PATCH · DELETE /api/members`<br/>`GET · POST · PATCH · DELETE /api/tasks`<br/>`GET /api/progress` | `src/routes/members.js` · `tasks.js` · `progress.js` |
-| **테스트** | 48개 | `test/validate.test.js` · `progress.test.js` · `completed-at.test.js` · `tasks-api.test.js` · `members-api.test.js` |
+| **테스트** | 49개 | `test/validate.test.js` · `progress.test.js` · `completed-at.test.js` · `tasks-api.test.js` · `members-api.test.js` |
 | **시연** | 팀원 · 작업 등록 → 잘못된 값에 안내 문장 → 완료 처리 → 진행률 · 완료 작업 비중 변화 | |
 
 ### A 김권섭 — 작업 정의 기능
@@ -203,7 +203,8 @@ const isParent = (task) => parentIds.has(task.id);
 {
   progress: 40,                      // 전체 진행률 %
   doneHoursTotal: 12,                // 완료된 작업의 확정 예상 시간 합
-  members: [ { memberId: 'm1', name: '김권섭', doneShare: 50, doneHours: 6 } ]
+  members: [ { memberId: 'm1', name: '김권섭', doneShare: 50, doneHours: 6 } ],
+  unassigned: { doneShare: 20, doneHours: 2 }  // 담당자 없는 완료 작업 몫 (삭제된 팀원이 끝낸 작업 등). 0시간이면 화면에 안 그림
 }
 
 // A — estimate 요약

@@ -247,7 +247,8 @@ async function drawProgress(slot, members, tasks, isLatest) {
   const done = counted.filter((t) => t.status === 'DONE').length;
   const shares = p.doneHoursTotal === 0
     ? [el('p', { className: 'sub' }, done === 0 ? '아직 완료된 작업이 없습니다.' : '완료한 작업의 확정 시간이 아직 없습니다.')]
-    : p.members.map((m) => meter(m.name, `${m.doneShare}% · ${m.doneHours}시간 / ${p.doneHoursTotal}시간`, m.doneShare));
+    : [...p.members, ...(p.unassigned.doneHours > 0 ? [{ name: '담당 미정', ...p.unassigned }] : [])]
+      .map((m) => meter(m.name, `${m.doneShare}% · ${m.doneHours}시간 / ${p.doneHoursTotal}시간`, m.doneShare));
   // A 의 지난주 요약 자리. 다시 그려도 A 가 채운 내용이 지워지지 않게 같은 노드를 다시 붙인다
   const summary = slot.querySelector('#weekly-summary') ?? el('div', { id: 'weekly-summary' });
   fill(slot,
